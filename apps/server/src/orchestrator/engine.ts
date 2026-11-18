@@ -3,7 +3,9 @@ import os from 'node:os';
 import path from 'node:path';
 import {
   appendMessageRaw,
+  estimateCostUsd,
   extractFileRefs,
+  extractInsights,
   extractMentions,
   nextMessageId,
   replaceMessageRaw,
@@ -244,6 +246,16 @@ export class ConversationOrchestrator {
             reason = `Đã chạm giới hạn ${maxTurns} lượt (max_turns).`;
             this.notifyUser('Synapse · Chạm giới hạn lượt', reason, 'warn', filePath);
             break;
+          }
+
+          const maxCost = latest.meta.max_cost_usd;
+          if (typeof maxCost === 'number' && maxCost > 0) {
+            const spent = extractInsights(latest).totalCostUsd;
+            if (spent >= maxCost) {
+              reason = `Đã chạm ngân sách $${maxCost.toFixed(2)} (đã dùng $${spent.toFixed(4)}).`;
+              this.notifyUser('Synapse · Chạm ngân sách', reason, 'warn', filePath);
+              break;
+            }
           }
 
           const nextAgent = this.pickNextAgent(latest);
@@ -527,6 +539,13 @@ export class ConversationOrchestrator {
       const durationMs = Date.now() - startMs;
 
       const mentions = extractMentions(finalContent);
+      const costUsd = estimateCostUsd(
+        agent.model,
+        agent.provider,
+        result.tokensIn ?? 0,
+        result.tokensOut ?? 0,
+        result.costUsd
+      );
       await this.sync.patchRaw(filePath, (raw, latest) => {
         const msgId = nextMessageId(latest.messages);
         const newMessage: ChatMessage = {
@@ -542,6 +561,7 @@ export class ConversationOrchestrator {
             status: 'done',
             tokens_in: result.tokensIn,
             tokens_out: result.tokensOut,
+            ...(costUsd > 0 ? { cost_usd: Number(costUsd.toFixed(6)) } : {}),
             duration_ms: durationMs,
             refs: fileExcerpts.map((f) => f.path),
           },

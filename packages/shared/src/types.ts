@@ -59,6 +59,7 @@ export interface ChatSessionMeta {
   project_root?: string;
   mode: OrchestrationMode;
   max_turns: number;
+  max_cost_usd?: number;
   status: SessionStatus;
   agents: AgentConfig[];
   [key: string]: unknown;
@@ -71,6 +72,7 @@ export interface MessageMeta {
   status?: 'done' | 'streaming' | 'stopped' | 'error';
   tokens_in?: number;
   tokens_out?: number;
+  cost_usd?: number;
   duration_ms?: number;
   refs?: string[];
   error?: string;
@@ -129,12 +131,22 @@ export interface DecisionItem {
   messageId: string;
 }
 
+export interface AgentUsageStats {
+  agentId: string;
+  turns: number;
+  tokensIn: number;
+  tokensOut: number;
+  costUsd: number;
+}
+
 export interface InsightsSummary {
   decisions: DecisionItem[];
   actionItems: ActionItem[];
   referencedFiles: string[];
   totalTokensIn: number;
   totalTokensOut: number;
+  totalCostUsd: number;
+  agentUsage: AgentUsageStats[];
 }
 
 export interface ProviderSettings {

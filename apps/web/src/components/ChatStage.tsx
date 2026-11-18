@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   AlertTriangle,
+  Archive,
   Bell,
   Columns2,
   GitCompare,
@@ -146,6 +147,8 @@ export function ChatStage({ onOpenSettings, onNewSession, onOpenDiff }: ChatStag
   const isReadyForReview = Boolean(
     lastDocMsg && /READY FOR REVIEW/i.test(`${lastDocMsg.meta?.headingSuffix || ''} ${lastDocMsg.content}`)
   );
+  const needsCompact =
+    activeDoc.messages.length >= 5 || activeDoc.raw.split('\n').length > 120;
 
   const streamingCardMsg: ChatMessage | null = activeStream
     ? {
@@ -243,6 +246,21 @@ export function ChatStage({ onOpenSettings, onNewSession, onOpenDiff }: ChatStag
             <GitCompare className="h-3.5 w-3.5" strokeWidth={1.5} />
             {isReadyForReview && <span className="h-1.5 w-1.5 rounded-full bg-[#4cc38a]" />}
             Review diff
+          </button>
+
+          <button
+            type="button"
+            onClick={() => void api.compactSession(activeDoc.filePath, 2)}
+            disabled={activeDoc.messages.length <= 2 || orchestratorRunning}
+            className={`inline-flex h-8 items-center gap-1.5 rounded-lg border px-3 text-xs font-medium transition-colors duration-150 disabled:opacity-40 ${
+              needsCompact
+                ? 'border-[#e5a04d]/40 bg-[#e5a04d]/10 text-[#ededed]'
+                : 'border-[rgba(237,237,237,0.08)] bg-[#19191b] text-[#a1a1a6] hover:bg-[#232325] hover:text-[#ededed]'
+            }`}
+            title="Chuyển các lượt cũ sang archive, giữ 2 lượt mới nhất và tóm tắt vào Mục 1"
+          >
+            <Archive className="h-3.5 w-3.5" strokeWidth={1.5} />
+            Nén
           </button>
 
           <button

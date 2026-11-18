@@ -45,6 +45,7 @@ export function NewSessionModal({ open, onClose }: NewSessionModalProps) {
   const [fileName, setFileName] = useState(`session-${Date.now().toString().slice(-4)}.chat.md`);
   const [mode, setMode] = useState<OrchestrationMode>('mention_and_round_robin');
   const [maxTurns, setMaxTurns] = useState(8);
+  const [maxCostUsd, setMaxCostUsd] = useState('');
   const [initialPrompt, setInitialPrompt] = useState(
     'Chúng ta cần thiết kế tính năng mới cho dự án. @architect đề xuất phương án trước.'
   );
@@ -78,11 +79,13 @@ export function NewSessionModal({ open, onClose }: NewSessionModalProps) {
     setSubmitting(true);
     setError(null);
     try {
+      const parsedCost = Number(maxCostUsd);
       const res = await api.createSession({
         fileName,
         title,
         mode,
         max_turns: maxTurns,
+        ...(Number.isFinite(parsedCost) && parsedCost > 0 ? { max_cost_usd: parsedCost } : {}),
         agents,
         initialPrompt,
       });
@@ -151,6 +154,18 @@ export function NewSessionModal({ open, onClose }: NewSessionModalProps) {
                 max={50}
                 value={maxTurns}
                 onChange={(e) => setMaxTurns(Number(e.target.value) || 8)}
+                className="h-9 w-full rounded-lg border border-[rgba(237,237,237,0.1)] bg-[#19191b] px-3 text-xs text-[#ededed] tabular-nums focus:border-[#5b9cf6] focus:outline-none"
+              />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="mb-1.5 block text-xs text-[#a1a1a6]">Ngân sách tối đa (USD, tùy chọn)</label>
+              <input
+                type="number"
+                min={0}
+                step="0.05"
+                value={maxCostUsd}
+                onChange={(e) => setMaxCostUsd(e.target.value)}
+                placeholder="VD: 0.50 (để trống nếu không giới hạn)"
                 className="h-9 w-full rounded-lg border border-[rgba(237,237,237,0.1)] bg-[#19191b] px-3 text-xs text-[#ededed] tabular-nums focus:border-[#5b9cf6] focus:outline-none"
               />
             </div>

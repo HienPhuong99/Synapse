@@ -98,6 +98,7 @@ export async function runCliProvider(
   let finalText: string | undefined;
   let tokensIn: number | undefined;
   let tokensOut: number | undefined;
+  let costUsd: number | undefined;
   let failure: string | undefined;
   const notes: string[] = [];
 
@@ -137,6 +138,7 @@ export async function runCliProvider(
         finalText = typeof ev.result === 'string' ? ev.result : undefined;
         tokensIn = ev.usage ? (ev.usage.input_tokens ?? 0) + (ev.usage.cache_read_input_tokens ?? 0) + (ev.usage.cache_creation_input_tokens ?? 0) : undefined;
         tokensOut = ev.usage?.output_tokens;
+        if (typeof ev.total_cost_usd === 'number') costUsd = ev.total_cost_usd;
         for (const d of ev.permission_denials ?? []) {
           const s = summarizeTool(d.tool_name, d.tool_input);
           notes.push(`${s.tool}${s.detail ? ` \`${s.detail}\`` : ''}`);
@@ -190,5 +192,5 @@ export async function runCliProvider(
     content += `\n\n> Synapse: bị chặn quyền/lỗi khi chạy headless: ${notes.join(', ')}. Chạy tay trong CLI nếu cần.`;
   }
   callbacks.onContentDelta(content);
-  return { thinking, content, tokensIn, tokensOut };
+  return { thinking, content, tokensIn, tokensOut, costUsd };
 }

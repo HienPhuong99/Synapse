@@ -2,12 +2,14 @@ import yaml from 'js-yaml';
 import type {
   ActionItem,
   AgentConfig,
+  AgentUsageStats,
   ChatDocument,
   ChatMessage,
   ChatSessionMeta,
   DecisionItem,
   InsightsSummary,
   MessageMeta,
+  ProviderKind,
 } from './types.js';
 
 const DEFAULT_META: ChatSessionMeta = {
@@ -537,6 +539,57 @@ export function setStatusRaw(raw: string, status: ChatSessionMeta['status']): st
   });
 }
 
+/**
+ * Archives all turns except the newest `keepLatest` turns into a verbatim archive chunk,
+ * and appends a 1-line summary of each archived turn under `## 1. Tóm tắt lịch sử`.
+ */
+export function compactChatMdRaw(
+  raw: string,
+  keepLatest = 2
+): { compacted: string; archivedText: string; archivedCount: number } | null {
+  const scan = scanChatMd(raw);
+  if (scan.blocks.length <= keepLatest) return null;
+
+  const cutIdx = scan.blocks.length - keepLatest;
+  const archivedBlocks = scan.blocks.slice(0, cutIdx);
+  const archivedMessages = scan.messages.slice(0, cutIdx);
+  const firstKeptStart = scan.blocks[cutIdx].start;
+
+  const archivedText = archivedBlocks
+    .map((b) => scan.text.slice(b.start, b.end).trim())
+    .filter(Boolean)
+    .join('\n\n');
+
+  const summaryLines = archivedMessages.map((msg) => {
+    const ts = msg.timestamp ? ` (${msg.timestamp})` : '';
+    const suffix = msg.meta?.headingSuffix ? `${msg.meta.headingSuffix.replace(/`/g, '')}` : '';
+    const snippet = msg.content.replace(/\s+/g, ' ').trim().slice(0, 90);
+    return `- **@${msg.author}${ts}:** ${suffix || snippet || '(trống)'}`;
+  });
+
+  const headPart = scan.text.slice(0, scan.blocks[0].start).trimEnd();
+  const keptTail = scan.text.slice(firstKeptStart).trimStart();
+
+  let updatedHead = headPart;
+  const summaryHeading = /(^##\s+1\.\s+[^\n]*\n)([\s\S]*?)(?=\n##\s+2\.|\n---|\s*$)/m;
+  if (summaryHeading.test(updatedHead)) {
+    updatedHead = updatedHead.replace(summaryHeading, (_all, hdr: string, body: string) => {
+      const cleanBody = body.trimEnd();
+      return `${hdr}${cleanBody ? `${cleanBody}\n` : ''}${summaryLines.join('\n')}`;
+    });
+  } else {
+    updatedHead = `${updatedHead}${updatedHead ? '\n\n' : ''}## 1. Tóm tắt lịch sử\n${summaryLines.join('\n')}`;
+  }
+
+  const out = `${updatedHead.trimEnd()}\n\n${keptTail.trimEnd()}\n`;
+  const eol = raw.includes('\r\n') ? '\r\n' : '\n';
+  return {
+    compacted: eol === '\r\n' ? out.replace(/\n/g, '\r\n') : out,
+    archivedText: eol === '\r\n' ? archivedText.replace(/\n/g, '\r\n') : archivedText,
+    archivedCount: archivedBlocks.length,
+  };
+}
+
 export function serializeChatMd(doc: ChatDocument): string {
   if (doc.meta.schema === 'thread-md/v1') {
     const parts: string[] = [];
@@ -555,6 +608,9 @@ export function serializeChatMd(doc: ChatDocument): string {
     project_root: doc.meta.project_root || '.',
     mode: doc.meta.mode || 'mention_and_round_robin',
     max_turns: doc.meta.max_turns || 12,
+    ...(typeof doc.meta.max_cost_usd === 'number' && doc.meta.max_cost_usd > 0
+      ? { max_cost_usd: doc.meta.max_cost_usd }
+      : {}),
     status: doc.meta.status || 'idle',
     agents: doc.meta.agents.map((a) => {
       const out: Record<string, unknown> = {
@@ -603,19 +659,90 @@ export function nextMessageId(messages: ChatMessage[]): string {
   return `msg_${String(maxNum + 1).padStart(2, '0')}`;
 }
 
+export function estimateCostUsd(
+  model: string | undefined,
+  provider: ProviderKind | undefined,
+  tokensIn = 0,
+  tokensOut = 0,
+  explicitCostUsd?: number
+): number {
+  if (typeof explicitCostUsd === 'number' && Number.isFinite(explicitCostUsd) && explicitCostUsd >= 0) {
+    return explicitCostUsd;
+  }
+  if (provider === 'simulator' || provider === 'ollama') return 0;
+  if (tokensIn === 0 && tokensOut === 0) return 0;
+
+  const m = (model || '').toLowerCase();
+  let inPerM = 1.0;
+  let outPerM = 4.0;
+  if (m.includes('opus')) {
+    inPerM = 5.0;
+    outPerM = 25.0;
+  } else if (m.includes('sonnet') || m.includes('claude')) {
+    inPerM = 2.0;
+    outPerM = 10.0;
+  } else if (m.includes('flash-lite')) {
+    inPerM = 0.08;
+    outPerM = 0.3;
+  } else if (m.includes('flash')) {
+    inPerM = 0.15;
+    outPerM = 0.6;
+  } else if (m.includes('gemini') || m.includes('argon') || m.includes('pro')) {
+    inPerM = 1.25;
+    outPerM = 5.0;
+  } else if (m.includes('gpt')) {
+    inPerM = 2.5;
+    outPerM = 10.0;
+  }
+
+  return (tokensIn * inPerM + tokensOut * outPerM) / 1_000_000;
+}
+
 export function extractInsights(doc: ChatDocument): InsightsSummary {
   const decisions: DecisionItem[] = [];
   const actionItems: ActionItem[] = [];
   const fileSet = new Set<string>();
+  const agentMap = new Map(doc.meta.agents.map((a) => [a.id.toLowerCase(), a]));
+  const usageByAgent = new Map<string, AgentUsageStats>();
   let totalTokensIn = 0;
   let totalTokensOut = 0;
+  let totalCostUsd = 0;
 
   let dIdx = 1;
   let aIdx = 1;
 
   for (const msg of doc.messages) {
-    if (msg.meta?.tokens_in) totalTokensIn += msg.meta.tokens_in;
-    if (msg.meta?.tokens_out) totalTokensOut += msg.meta.tokens_out;
+    const tIn = msg.meta?.tokens_in ?? 0;
+    const tOut = msg.meta?.tokens_out ?? 0;
+    totalTokensIn += tIn;
+    totalTokensOut += tOut;
+
+    const authorId = msg.author.toLowerCase();
+    const cfg = agentMap.get(authorId);
+    const msgCost = estimateCostUsd(
+      msg.meta?.model ?? cfg?.model,
+      msg.meta?.provider ?? cfg?.provider,
+      tIn,
+      tOut,
+      msg.meta?.cost_usd
+    );
+    totalCostUsd += msgCost;
+
+    if (authorId !== 'human' && authorId !== 'user') {
+      const prev = usageByAgent.get(authorId) ?? {
+        agentId: msg.author,
+        turns: 0,
+        tokensIn: 0,
+        tokensOut: 0,
+        costUsd: 0,
+      };
+      prev.turns += 1;
+      prev.tokensIn += tIn;
+      prev.tokensOut += tOut;
+      prev.costUsd += msgCost;
+      usageByAgent.set(authorId, prev);
+    }
+
     for (const f of msg.fileRefs) {
       fileSet.add(f);
     }
@@ -681,5 +808,7 @@ export function extractInsights(doc: ChatDocument): InsightsSummary {
     referencedFiles: Array.from(fileSet),
     totalTokensIn,
     totalTokensOut,
+    totalCostUsd,
+    agentUsage: Array.from(usageByAgent.values()),
   };
 }

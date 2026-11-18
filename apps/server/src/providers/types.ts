@@ -29,4 +29,5 @@ export interface ProviderStreamResult {
   content: string;
   tokensIn?: number;
   tokensOut?: number;
+  costUsd?: number;
 }

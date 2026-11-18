@@ -6,6 +6,7 @@ import websocket from '@fastify/websocket';
 import Fastify, { type FastifyInstance } from 'fastify';
 import type { WebSocket } from 'ws';
 import {
+  compactChatMdRaw,
   extractInsights,
   serializeChatMd,
   type AgentConfig,
@@ -180,11 +181,20 @@ export async function createSynapseServer(options: CreateServerOptions): Promise
       title: string;
       mode?: OrchestrationMode;
       max_turns?: number;
+      max_cost_usd?: number;
       agents: AgentConfig[];
       initialPrompt?: string;
     };
   }>('/api/sessions', async (req, reply) => {
-    const { fileName, title, mode = 'mention_and_round_robin', max_turns = 12, agents, initialPrompt } = req.body;
+    const {
+      fileName,
+      title,
+      mode = 'mention_and_round_robin',
+      max_turns = 12,
+      max_cost_usd,
+      agents,
+      initialPrompt,
+    } = req.body;
     if (!fileName || !title) {
       return reply.code(400).send({ error: 'fileName và title là bắt buộc.' });
     }
@@ -201,6 +211,7 @@ export async function createSynapseServer(options: CreateServerOptions): Promise
         project_root: '.',
         mode,
         max_turns,
+        ...(typeof max_cost_usd === 'number' && max_cost_usd > 0 ? { max_cost_usd } : {}),
         status: 'idle',
         agents: agents ?? [],
       },
@@ -298,6 +309,46 @@ export async function createSynapseServer(options: CreateServerOptions): Promise
     if (!relPath) return reply.code(400).send({ error: 'Missing path' });
     orchestrator.runInBackground(relPath, orchestrator.runDiffReview(relPath, reviewerId));
     return { ok: true, status: orchestrator.getStatus(relPath) };
+  });
+
+  app.post<{ Body: { path: string; keepLatest?: number } }>('/api/sessions/compact', async (req, reply) => {
+    const { path: relPath, keepLatest = 2 } = req.body;
+    if (!relPath) return reply.code(400).send({ error: 'Missing path' });
+
+    let archivedText = '';
+    let archivedCount = 0;
+    const doc = await sync.patchRaw(relPath, (raw) => {
+      const result = compactChatMdRaw(raw, keepLatest);
+      if (!result) return raw;
+      archivedText = result.archivedText;
+      archivedCount = result.archivedCount;
+      return result.compacted;
+    });
+
+    if (archivedCount === 0) {
+      return { ok: true, archivedCount: 0, document: doc, insights: extractInsights(doc) };
+    }
+
+    const dir = path.posix.dirname(doc.filePath);
+    const base = path.posix.basename(doc.filePath);
+    const archiveName = base.toLowerCase() === 'chat.md' ? 'chat.archive.md' : `${base.replace(/\.chat\.md$/i, '')}.archive.md`;
+    const archiveRel = dir === '.' ? archiveName : `${dir}/${archiveName}`;
+    const archiveAbs = sync.resolveSafe(archiveRel);
+
+    await sync.writeQueue.enqueue(archiveAbs, async () => {
+      const existing = await fsPromises.readFile(archiveAbs, 'utf8').catch(() => '');
+      const sep = existing.trimEnd() ? '\n\n' : '';
+      const nextContent = `${existing.trimEnd()}${sep}${archivedText}\n`;
+      await sync.writeQueue.writeAtomic(archiveAbs, nextContent);
+    });
+
+    return {
+      ok: true,
+      archivedCount,
+      archivePath: archiveRel,
+      document: doc,
+      insights: extractInsights(doc),
+    };
   });
 
   app.get<{ Querystring: { path?: string } }>('/api/file', async (req, reply) => {

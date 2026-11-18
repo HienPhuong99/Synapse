@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { CheckCircle2, Circle, Cpu, FileCode2, Lightbulb, ListChecks, Play } from 'lucide-react';
+import { CheckCircle2, Circle, Coins, Cpu, FileCode2, Lightbulb, ListChecks, Play } from 'lucide-react';
 import { api } from '../lib/api.ts';
 import { formatPresenceLabel, presenceDotColor } from '../lib/presence.ts';
 import { useSynapseStore } from '../store/useSynapseStore.ts';
@@ -105,6 +105,48 @@ export function SidebarRight() {
           })}
         </div>
       </div>
+
+      {/* Token & Budget (#7) */}
+      {(insights && (insights.totalTokensIn > 0 || insights.totalTokensOut > 0 || insights.totalCostUsd > 0 || activeDoc.meta.max_cost_usd)) && (
+        <div className="border-b border-[rgba(237,237,237,0.08)] p-4">
+          <div className="mb-2.5 flex items-center justify-between">
+            <div className="flex items-center gap-2 text-xs font-medium text-[#a1a1a6]">
+              <Coins className="h-4 w-4 text-[#85858b]" strokeWidth={1.5} />
+              <span>Ngân sách</span>
+            </div>
+            <span className="font-mono text-xs text-[#ededed] tabular-nums">
+              ${insights.totalCostUsd.toFixed(4)}
+              {activeDoc.meta.max_cost_usd ? ` / $${activeDoc.meta.max_cost_usd.toFixed(2)}` : ''}
+            </span>
+          </div>
+
+          {typeof activeDoc.meta.max_cost_usd === 'number' && activeDoc.meta.max_cost_usd > 0 && (() => {
+            const pct = Math.min(100, (insights.totalCostUsd / activeDoc.meta.max_cost_usd) * 100);
+            const barColor = pct >= 100 ? '#e5484d' : pct >= 80 ? '#e5a04d' : '#4cc38a';
+            return (
+              <div className="mb-3 h-1.5 w-full overflow-hidden rounded-full bg-[#232325]">
+                <div className="h-full" style={{ width: `${pct}%`, backgroundColor: barColor }} />
+              </div>
+            );
+          })()}
+
+          {insights.agentUsage.length > 0 && (
+            <div className="space-y-1.5">
+              {insights.agentUsage.map((u) => (
+                <div
+                  key={u.agentId}
+                  className="flex items-center justify-between font-mono text-xs text-[#85858b] tabular-nums"
+                >
+                  <span className="truncate text-[#a1a1a6]">@{u.agentId} ({u.turns})</span>
+                  <span>
+                    {u.tokensIn + u.tokensOut} tok · ${u.costUsd.toFixed(4)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Decisions Log */}
       <div className="border-b border-[rgba(237,237,237,0.08)] p-4">

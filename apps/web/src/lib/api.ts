@@ -50,6 +50,7 @@ export const api = {
     title: string;
     mode: OrchestrationMode;
     max_turns: number;
+    max_cost_usd?: number;
     agents: AgentConfig[];
     initialPrompt?: string;
   }) =>
@@ -100,6 +101,18 @@ export const api = {
     requestJson<{ ok: boolean; status: { running: boolean; turnCount: number } }>('/api/sessions/review', {
       method: 'POST',
       body: JSON.stringify({ path, reviewerId }),
+    }),
+
+  compactSession: (path: string, keepLatest = 2) =>
+    requestJson<{
+      ok: boolean;
+      archivedCount: number;
+      archivePath?: string;
+      document: ChatDocument;
+      insights: InsightsSummary;
+    }>('/api/sessions/compact', {
+      method: 'POST',
+      body: JSON.stringify({ path, keepLatest }),
     }),
 
   readFile: (path: string) =>

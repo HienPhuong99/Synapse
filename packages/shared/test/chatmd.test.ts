@@ -1,10 +1,12 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  appendMessageRaw,
+  compactChatMdRaw,
+  estimateCostUsd,
   extractInsights,
   extractMentions,
   nextMessageId,
-  appendMessageRaw,
   parseChatMd,
   replaceMessageRaw,
   serializeChatMd,
@@ -167,5 +169,43 @@ Xác nhận ổn.
     const fm = '---\nschema: synapse/v1\ncustom_key: 1\nstatus: idle\n---\n\n## [msg_01] @human\nhi\n';
     assert.equal(setStatusRaw(fm, 'running'), fm.replace('status: idle', 'status: running'));
     assert.equal(setStatusRaw(thread, 'running'), thread);
+  });
+
+  it('compacts older turns cleanly and computes per-agent token cost', () => {
+    const raw = [
+      '# Board',
+      '',
+      '## 1. Tóm tắt lịch sử',
+      '- Mốc 0',
+      '',
+      '## 2. Việc còn mở',
+      '- Việc X',
+      '',
+      '## 3. Thread',
+      '',
+      '### `[Claude | 2026-11-18 10:00 +07]` — `DONE`',
+      'Tin 1',
+      '',
+      '### `[Gemini | 2026-11-18 10:05 +07]` — `DONE`',
+      'Tin 2',
+      '',
+      '### `[Claude | 2026-11-18 10:10 +07]` — `OPEN`',
+      'Tin 3',
+      '',
+      '### `[Gemini | 2026-11-18 10:15 +07]` — `OPEN`',
+      'Tin 4',
+    ].join('\n');
+
+    const res = compactChatMdRaw(raw, 2);
+    assert.ok(res);
+    assert.equal(res.archivedCount, 2);
+    assert.match(res.archivedText, /Tin 1/);
+    assert.match(res.archivedText, /Tin 2/);
+    assert.equal(parseChatMd(res.compacted).messages.length, 2);
+    assert.match(res.compacted, /## 2\. Việc còn mở\n- Việc X/);
+    assert.match(res.compacted, /\*\*@claude \(2026-11-18 10:00 \+07\):\*\* DONE/);
+
+    assert.equal(estimateCostUsd('synapse-sim-1', 'simulator', 1000, 1000), 0);
+    assert.ok(estimateCostUsd('claude-opus-5-5', 'anthropic', 1_000_000, 0) === 5);
   });
 });
