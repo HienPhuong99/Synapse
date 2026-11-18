@@ -17,9 +17,11 @@ import {
   type WsServerEvent,
 } from '@synapse/shared';
 import { runAgentProvider } from '../providers/index.js';
+import { isValidHttpUrl, sendNtfyNotification } from '../presence/notify.js';
 import type { PresenceStore } from '../presence/store.js';
 import type { WorkspaceSync } from '../sync/watcher.js';
 import { readSafeWorkspaceFile } from './context.js';
+import { readWorkspaceGitDiff } from './gitDiff.js';
 
 interface ActiveRun {
   controller: AbortController;
@@ -107,6 +109,7 @@ export class ConversationOrchestrator {
       openaiApiKey: this.settings.openaiApiKey ? '••••••••' + this.settings.openaiApiKey.slice(-4) : '',
       openaiBaseUrl: this.settings.openaiBaseUrl || '',
       ollamaBaseUrl: this.settings.ollamaBaseUrl || 'http://127.0.0.1:11434',
+      ntfyTopicUrl: this.settings.ntfyTopicUrl || '',
     };
   }
 
@@ -123,11 +126,20 @@ export class ConversationOrchestrator {
     }
     if (next.openaiBaseUrl !== undefined) updated.openaiBaseUrl = next.openaiBaseUrl.trim();
     if (next.ollamaBaseUrl !== undefined) updated.ollamaBaseUrl = next.ollamaBaseUrl.trim();
+    if (next.ntfyTopicUrl !== undefined) {
+      const cleanNtfy = next.ntfyTopicUrl.trim();
+      updated.ntfyTopicUrl = !cleanNtfy ? '' : isValidHttpUrl(cleanNtfy) ? cleanNtfy : updated.ntfyTopicUrl;
+    }
 
     this.settings = updated;
     await fs.mkdir(path.dirname(this.settingsPath), { recursive: true });
     await fs.writeFile(this.settingsPath, JSON.stringify(updated, null, 2), 'utf8');
     return this.getMaskedSettings();
+  }
+
+  notifyUser(title: string, body: string, level: 'info' | 'warn' | 'error' = 'info', filePath?: string): void {
+    this.emitEvent({ type: 'notification:event', title, body, level, filePath });
+    void sendNtfyNotification(this.settings.ntfyTopicUrl, { title, body, level });
   }
 
   /** Fire-and-forget a run without letting a rejection kill the process; report it to the UI instead. */
@@ -230,6 +242,7 @@ export class ConversationOrchestrator {
           const maxTurns = latest.meta.max_turns || 12;
           if (runState.turnCount >= maxTurns) {
             reason = `Đã chạm giới hạn ${maxTurns} lượt (max_turns).`;
+            this.notifyUser('Synapse · Chạm giới hạn lượt', reason, 'warn', filePath);
             break;
           }
 
@@ -366,11 +379,70 @@ export class ConversationOrchestrator {
     );
   }
 
+  async runDiffReview(filePath: string, reviewerId?: string): Promise<void> {
+    if (this.activeRuns.has(filePath)) {
+      throw new Error('Phiên thảo luận này đang chạy một lượt AI khác.');
+    }
+
+    const doc = this.sync.getDocument(filePath);
+    if (!doc) throw new Error(`Không tìm thấy file: ${filePath}`);
+    if (doc.meta.agents.length === 0) throw new Error('Phiên chưa có Agent nào.');
+
+    const reviewer =
+      (reviewerId ? doc.meta.agents.find((a) => a.id === reviewerId) : undefined) ??
+      doc.meta.agents.find((a) => /review|claude/i.test(`${a.id} ${a.role || ''}`)) ??
+      doc.meta.agents[0];
+
+    const gitDiff = await readWorkspaceGitDiff(this.sync.workspaceRoot, 16_000);
+    if (!gitDiff.isGitRepo) {
+      throw new Error('Thư mục hiện tại không phải Git repository.');
+    }
+    if (!gitDiff.diff.trim() && !gitDiff.statusShort.trim()) {
+      throw new Error('Không có thay đổi Git nào để review.');
+    }
+
+    const reviewDoc: ChatDocument = {
+      ...doc,
+      messages: [
+        ...doc.messages.slice(-2),
+        {
+          id: 'diff_review',
+          author: 'human',
+          timestamp: new Date().toISOString(),
+          content: [
+            `Review git diff hiện tại (${gitDiff.branch || 'HEAD'}):`,
+            gitDiff.diffStat ? `\`\`\`\n${gitDiff.diffStat}\n\`\`\`` : '',
+            'Chỉ tập trung soi lỗi logic, bảo mật, concurrency và edge-case. Nếu ổn ghi `AGREED`, nếu cần sửa ghi rõ `file:line`.',
+          ]
+            .filter(Boolean)
+            .join('\n\n'),
+          mentions: [reviewer.id],
+          fileRefs: [],
+        },
+      ],
+    };
+
+    const controller = new AbortController();
+    const run: ActiveRun = { controller, turnCount: 1, looping: false };
+    this.activeRuns.set(filePath, run);
+    this.emitEvent({ type: 'orchestrator:status', filePath, running: true, turnCount: 1 });
+
+    const task = this.executeTurn(filePath, reviewer, controller.signal, {
+      document: reviewDoc,
+      fileExcerpts: gitDiff.diff ? [{ path: 'git-diff.patch', content: gitDiff.diff }] : [],
+    }).finally(() => {
+      this.activeRuns.delete(filePath);
+      this.emitEvent({ type: 'orchestrator:status', filePath, running: false, turnCount: 0 });
+    });
+    run.done = task.then(noop, noop);
+    return task;
+  }
+
   private async executeTurn(
     filePath: string,
     agent: AgentConfig,
     signal: AbortSignal,
-    override?: { document: ChatDocument; thinkingPrefix?: string }
+    override?: { document: ChatDocument; thinkingPrefix?: string; fileExcerpts?: { path: string; content: string }[] }
   ): Promise<void> {
     const doc = this.sync.getDocument(filePath);
     if (!doc) return;
@@ -380,18 +452,17 @@ export class ConversationOrchestrator {
     const startedAt = new Date().toISOString();
     const startMs = Date.now();
 
-    // Gather @file references from recent messages
-    const refPaths = Array.from(
-      new Set(doc.messages.slice(-6).flatMap((m) => m.fileRefs))
-    ).slice(0, 5);
-
-    const fileExcerpts: { path: string; content: string }[] = [];
-    for (const ref of refPaths) {
-      try {
-        const loaded = await readSafeWorkspaceFile(this.sync.workspaceRoot, ref, 10000);
-        fileExcerpts.push({ path: loaded.path, content: loaded.content });
-      } catch {
-        // Ignore missing/inaccessible files
+    const fileExcerpts: { path: string; content: string }[] = override?.fileExcerpts ? [...override.fileExcerpts] : [];
+    if (!override?.fileExcerpts) {
+      // Gather @file references from recent messages
+      const refPaths = Array.from(new Set(doc.messages.slice(-6).flatMap((m) => m.fileRefs))).slice(0, 5);
+      for (const ref of refPaths) {
+        try {
+          const loaded = await readSafeWorkspaceFile(this.sync.workspaceRoot, ref, 10000);
+          fileExcerpts.push({ path: loaded.path, content: loaded.content });
+        } catch {
+          // Ignore missing/inaccessible files
+        }
       }
     }
 
@@ -449,6 +520,7 @@ export class ConversationOrchestrator {
         undefined;
       const durationMs = Date.now() - startMs;
 
+      const mentions = extractMentions(finalContent);
       await this.sync.patchRaw(filePath, (raw, latest) => {
         const msgId = nextMessageId(latest.messages);
         const newMessage: ChatMessage = {
@@ -467,7 +539,7 @@ export class ConversationOrchestrator {
             duration_ms: durationMs,
             refs: fileExcerpts.map((f) => f.path),
           },
-          mentions: extractMentions(finalContent),
+          mentions,
           fileRefs: Array.from(new Set([...fileExcerpts.map((f) => f.path), ...extractFileRefs(finalContent)])),
         };
         return appendMessageRaw(raw, newMessage);
@@ -476,6 +548,15 @@ export class ConversationOrchestrator {
       this.emitEvent({ type: 'stream:end', filePath, messageId, status: 'done' });
       this.emitEvent({ type: 'agent:state', filePath, agentId: agent.id, state: 'idle' });
       this.presence?.ingest({ agent: agent.id, source: 'api', event: 'idle' }, this.sync.getAllDocuments());
+
+      if (mentions.some((m) => m.toLowerCase() === 'human')) {
+        this.notifyUser(
+          `@${agent.id} nhắc bạn`,
+          finalContent.slice(0, 140),
+          'info',
+          filePath
+        );
+      }
     } catch (err) {
       const aborted = signal.aborted || (err instanceof Error && err.name === 'AbortError');
       const errMsg = err instanceof Error ? err.message : String(err);
@@ -523,6 +604,7 @@ export class ConversationOrchestrator {
       );
 
       if (!aborted) {
+        this.notifyUser(`Lỗi ở @${agent.id}`, errMsg, 'error', filePath);
         throw err;
       }
     }

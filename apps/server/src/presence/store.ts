@@ -55,6 +55,12 @@ export class PresenceStore {
     clearInterval(this.sweepTimer);
   }
 
+  clearAll(): void {
+    if (this.map.size === 0) return;
+    this.map.clear();
+    this.emitEvent({ type: 'presence:snapshot', presences: [] });
+  }
+
   list(): AgentPresence[] {
     const now = Date.now();
     return Array.from(this.map.values()).map((p) => {

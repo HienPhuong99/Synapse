@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   AlertTriangle,
+  Bell,
   Columns2,
+  GitCompare,
   Pause,
   Play,
   Send,
@@ -21,14 +23,16 @@ import { RawMarkdownPane } from './RawMarkdownPane.tsx';
 interface ChatStageProps {
   onOpenSettings: () => void;
   onNewSession: () => void;
+  onOpenDiff: () => void;
 }
 
-export function ChatStage({ onOpenSettings, onNewSession }: ChatStageProps) {
+export function ChatStage({ onOpenSettings, onNewSession, onOpenDiff }: ChatStageProps) {
   const {
     activeDoc,
     streams,
     presences,
     presenceAlert,
+    latestNotification,
     splitView,
     orchestratorRunning,
     turnCount,
@@ -41,6 +45,7 @@ export function ChatStage({ onOpenSettings, onNewSession }: ChatStageProps) {
     selectSession,
     clearError,
     clearPresenceAlert,
+    clearNotification,
   } = useSynapseStore();
 
   const [autoRunOnSend, setAutoRunOnSend] = useState(true);
@@ -137,6 +142,10 @@ export function ChatStage({ onOpenSettings, onNewSession }: ChatStageProps) {
   }
 
   const agentsMap = new Map(activeDoc.meta.agents.map((a) => [a.id, a]));
+  const lastDocMsg = activeDoc.messages[activeDoc.messages.length - 1];
+  const isReadyForReview = Boolean(
+    lastDocMsg && /READY FOR REVIEW/i.test(`${lastDocMsg.meta?.headingSuffix || ''} ${lastDocMsg.content}`)
+  );
 
   const streamingCardMsg: ChatMessage | null = activeStream
     ? {
@@ -223,6 +232,21 @@ export function ChatStage({ onOpenSettings, onNewSession }: ChatStageProps) {
 
           <button
             type="button"
+            onClick={onOpenDiff}
+            className={`inline-flex h-8 items-center gap-1.5 rounded-lg border px-3 text-xs font-medium transition-colors duration-150 ${
+              isReadyForReview
+                ? 'border-[#4cc38a]/40 bg-[#4cc38a]/10 text-[#ededed]'
+                : 'border-[rgba(237,237,237,0.08)] bg-[#19191b] text-[#a1a1a6] hover:bg-[#232325] hover:text-[#ededed]'
+            }`}
+            title="Xem git diff và gửi cho Reviewer"
+          >
+            <GitCompare className="h-3.5 w-3.5" strokeWidth={1.5} />
+            {isReadyForReview && <span className="h-1.5 w-1.5 rounded-full bg-[#4cc38a]" />}
+            Review diff
+          </button>
+
+          <button
+            type="button"
             onClick={() => setSplitView(!splitView)}
             className={`inline-flex h-8 items-center gap-1.5 rounded-lg border px-3 text-xs font-medium transition-colors duration-150 ${
               splitView
@@ -283,6 +307,25 @@ export function ChatStage({ onOpenSettings, onNewSession }: ChatStageProps) {
               <X className="h-3.5 w-3.5" strokeWidth={1.5} />
             </button>
           )}
+        </div>
+      )}
+
+      {/* Notification Banner (@human / max_turns / error) */}
+      {latestNotification && (
+        <div className="flex items-center justify-between border-b border-[#5b9cf6]/25 bg-[#5b9cf6]/10 px-5 py-2 text-xs text-[#d6e6fd]">
+          <div className="flex items-center gap-2">
+            <Bell className="h-4 w-4 shrink-0 text-[#5b9cf6]" strokeWidth={1.5} />
+            <span className="font-medium">{latestNotification.title}:</span>
+            <span className="truncate">{latestNotification.body}</span>
+          </div>
+          <button
+            type="button"
+            onClick={clearNotification}
+            className="rounded p-1 hover:bg-[rgba(237,237,237,0.08)]"
+            aria-label="Đóng thông báo"
+          >
+            <X className="h-3.5 w-3.5" strokeWidth={1.5} />
+          </button>
         </div>
       )}
 

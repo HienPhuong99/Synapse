@@ -18,6 +18,7 @@ import {
 import { registerMcpRoute } from './mcp/server.js';
 import { getWorkspaceFileTree, readSafeWorkspaceFile } from './orchestrator/context.js';
 import { ConversationOrchestrator } from './orchestrator/engine.js';
+import { readWorkspaceGitDiff } from './orchestrator/gitDiff.js';
 import { PresenceStore } from './presence/store.js';
 import { WorkspaceSync } from './sync/watcher.js';
 
@@ -103,6 +104,13 @@ export async function createSynapseServer(options: CreateServerOptions): Promise
       return { ok: true, ignored: 'other workspace' };
     }
     const updated = presence.ingest(body, sync.getAllDocuments());
+    if (updated.status === 'needs_approval') {
+      orchestrator.notifyUser(
+        `Synapse · Cần bạn duyệt (@${updated.agentId})`,
+        updated.detail || 'Agent đang chờ xác nhận.',
+        'warn'
+      );
+    }
     return { ok: true, presence: updated };
   });
 
@@ -130,6 +138,7 @@ export async function createSynapseServer(options: CreateServerOptions): Promise
     }
 
     orchestrator.stopAll();
+    presence.clearAll();
     await sync.stop();
     await initWorkspace(resolved);
 
@@ -280,6 +289,15 @@ export async function createSynapseServer(options: CreateServerOptions): Promise
     }
 
     return reply.code(400).send({ error: `Unknown action: ${action}` });
+  });
+
+  app.get('/api/git/diff', async () => readWorkspaceGitDiff(sync.workspaceRoot));
+
+  app.post<{ Body: { path: string; reviewerId?: string } }>('/api/sessions/review', async (req, reply) => {
+    const { path: relPath, reviewerId } = req.body;
+    if (!relPath) return reply.code(400).send({ error: 'Missing path' });
+    orchestrator.runInBackground(relPath, orchestrator.runDiffReview(relPath, reviewerId));
+    return { ok: true, status: orchestrator.getStatus(relPath) };
   });
 
   app.get<{ Querystring: { path?: string } }>('/api/file', async (req, reply) => {

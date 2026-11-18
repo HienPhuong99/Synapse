@@ -143,6 +143,16 @@ export interface ProviderSettings {
   openaiApiKey?: string;
   openaiBaseUrl?: string;
   ollamaBaseUrl?: string;
+  ntfyTopicUrl?: string;
+}
+
+export interface GitDiffPayload {
+  isGitRepo: boolean;
+  branch?: string;
+  statusShort: string;
+  diffStat: string;
+  diff: string;
+  truncated: boolean;
 }
 
 export interface EphemeralStreamState {
@@ -173,4 +183,5 @@ export type WsServerEvent =
   | { type: 'orchestrator:status'; filePath: string; running: boolean; turnCount: number; reason?: string }
   | { type: 'presence:snapshot'; presences: AgentPresence[] }
   | { type: 'presence:update'; presence: AgentPresence }
-  | { type: 'presence:alert'; agentId: string; title: string; body: string };
+  | { type: 'presence:alert'; agentId: string; title: string; body: string }
+  | { type: 'notification:event'; title: string; body: string; level: 'info' | 'warn' | 'error'; filePath?: string };

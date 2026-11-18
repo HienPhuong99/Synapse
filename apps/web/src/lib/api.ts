@@ -2,6 +2,7 @@ import type {
   AgentConfig,
   ChatDocument,
   FileTreeNode,
+  GitDiffPayload,
   InsightsSummary,
   OrchestrationMode,
   ProviderSettings,
@@ -91,6 +92,14 @@ export const api = {
     requestJson<{ ok: boolean; status: { running: boolean; turnCount: number } }>('/api/sessions/control', {
       method: 'POST',
       body: JSON.stringify({ path, action, agentId }),
+    }),
+
+  getGitDiff: () => requestJson<GitDiffPayload>('/api/git/diff'),
+
+  triggerDiffReview: (path: string, reviewerId?: string) =>
+    requestJson<{ ok: boolean; status: { running: boolean; turnCount: number } }>('/api/sessions/review', {
+      method: 'POST',
+      body: JSON.stringify({ path, reviewerId }),
     }),
 
   readFile: (path: string) =>

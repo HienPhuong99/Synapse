@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { KeyRound, Save, X } from 'lucide-react';
+import { Bell, KeyRound, Save, X } from 'lucide-react';
 import type { ProviderSettings } from '@synapse/shared';
 import { api } from '../lib/api.ts';
 
@@ -12,14 +12,26 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
   const [settings, setSettings] = useState<ProviderSettings>({});
   const [saving, setSaving] = useState(false);
   const [savedOk, setSavedOk] = useState(false);
+  const [notifPerm, setNotifPerm] = useState<string>(() =>
+    typeof Notification !== 'undefined' ? Notification.permission : 'unsupported'
+  );
 
   useEffect(() => {
     if (!open) return;
     setSavedOk(false);
+    if (typeof Notification !== 'undefined') {
+      setNotifPerm(Notification.permission);
+    }
     void api.getSettings().then(setSettings);
   }, [open]);
 
   if (!open) return null;
+
+  const handleRequestDesktopNotif = async () => {
+    if (typeof Notification === 'undefined') return;
+    const result = await Notification.requestPermission();
+    setNotifPerm(result);
+  };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -94,6 +106,30 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
               onChange={(e) => setSettings((s) => ({ ...s, ollamaBaseUrl: e.target.value }))}
               className="h-9 w-full rounded-lg border border-[rgba(237,237,237,0.1)] bg-[#19191b] px-3 font-mono text-xs text-[#ededed] focus:border-[#5b9cf6] focus:outline-none"
             />
+          </div>
+          <div>
+            <label className="mb-1.5 block text-xs text-[#a1a1a6]">ntfy.sh Topic URL (thông báo điện thoại)</label>
+            <input
+              value={settings.ntfyTopicUrl ?? ''}
+              onChange={(e) => setSettings((s) => ({ ...s, ntfyTopicUrl: e.target.value }))}
+              placeholder="https://ntfy.sh/synapse-alerts"
+              className="h-9 w-full rounded-lg border border-[rgba(237,237,237,0.1)] bg-[#19191b] px-3 font-mono text-xs text-[#ededed] focus:border-[#5b9cf6] focus:outline-none"
+            />
+          </div>
+          <div className="flex items-center justify-between rounded-lg border border-[rgba(237,237,237,0.08)] bg-[#19191b] px-3 py-2">
+            <div className="flex items-center gap-2 text-xs text-[#a1a1a6]">
+              <Bell className="h-4 w-4 text-[#85858b]" strokeWidth={1.5} />
+              <span>Thông báo Desktop ({notifPerm})</span>
+            </div>
+            {notifPerm !== 'granted' && notifPerm !== 'unsupported' && (
+              <button
+                type="button"
+                onClick={() => void handleRequestDesktopNotif()}
+                className="h-7 rounded-md border border-[rgba(237,237,237,0.1)] bg-[#232325] px-2.5 text-xs text-[#ededed] hover:bg-[#2a2a2d]"
+              >
+                Bật quyền
+              </button>
+            )}
           </div>
 
           {savedOk && <p className="text-xs text-[#4cc38a]">Đã lưu cấu hình local</p>}

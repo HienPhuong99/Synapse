@@ -32,6 +32,7 @@ interface SynapseStore {
   agentStates: Record<string, Record<string, { state: AgentRuntimeState; detail?: string }>>;
   presences: Record<string, AgentPresence>;
   presenceAlert: { agentId: string; title: string; body: string } | null;
+  latestNotification: { title: string; body: string; level: 'info' | 'warn' | 'error' } | null;
   streams: Record<string, EphemeralStreamState>;
   splitView: boolean;
   composerText: string;
@@ -44,6 +45,7 @@ interface SynapseStore {
   appendComposerToken: (token: string) => void;
   clearError: () => void;
   clearPresenceAlert: () => void;
+  clearNotification: () => void;
   closeFilePreview: () => void;
 
   loadWorkspace: () => Promise<void>;
@@ -68,6 +70,7 @@ export const useSynapseStore = create<SynapseStore>((set, get) => ({
   agentStates: {},
   presences: {},
   presenceAlert: null,
+  latestNotification: null,
   streams: {},
   splitView: false,
   composerText: '',
@@ -84,6 +87,7 @@ export const useSynapseStore = create<SynapseStore>((set, get) => ({
     }),
   clearError: () => set({ errorBanner: null, orchestratorNotice: null }),
   clearPresenceAlert: () => set({ presenceAlert: null }),
+  clearNotification: () => set({ latestNotification: null }),
   closeFilePreview: () => set({ filePreview: null }),
 
   loadWorkspace: async () => {
@@ -118,6 +122,9 @@ export const useSynapseStore = create<SynapseStore>((set, get) => ({
       orchestratorRunning: false,
       turnCount: 0,
       orchestratorNotice: null,
+      presences: {},
+      presenceAlert: null,
+      latestNotification: null,
       streams: {},
       errorBanner: null,
     });
@@ -165,6 +172,9 @@ export const useSynapseStore = create<SynapseStore>((set, get) => ({
           activePath: null,
           activeDoc: null,
           insights: null,
+          presences: {},
+          presenceAlert: null,
+          latestNotification: null,
           streams: {},
         });
         if (event.sessions.length > 0) {
@@ -276,11 +286,27 @@ export const useSynapseStore = create<SynapseStore>((set, get) => ({
         break;
       }
       case 'presence:alert': {
+        if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+          new Notification(event.title, { body: event.body });
+        }
         set({
           presenceAlert: {
             agentId: event.agentId,
             title: event.title,
             body: event.body,
+          },
+        });
+        break;
+      }
+      case 'notification:event': {
+        if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+          new Notification(event.title, { body: event.body });
+        }
+        set({
+          latestNotification: {
+            title: event.title,
+            body: event.body,
+            level: event.level,
           },
         });
         break;
