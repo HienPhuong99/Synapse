@@ -7,6 +7,17 @@
 - **Dẫn chứng:** Review ghi `đường/dẫn/file:dòng` và kết quả `npm test` / `npm run build`.
 - **Tự commit & push khi xong task (chủ máy xác nhận 2026-11-18):** Mỗi khi hoàn thành task (đã chạy `npm run build` + `npm test` pass và chốt trạng thái trong `chat.md`), tự `git pull --rebase` (nếu cần), `git add` các file liên quan của task, `git commit` và `git push` lên remote luôn mà không cần hỏi lại.
 
+## Nén `chat.md` (tiết kiệm token, chủ máy duyệt 2026-11-18)
+
+- **Khi nào:** mục 3 có **từ 5 lượt trở lên** hoặc `chat.md` **dài hơn 120 dòng**, tuỳ điều kiện nào đến trước. Lượt dài (review, spec) làm file chạm mốc dòng trước khi đủ 5 lượt.
+- **Ai làm:** AI nào ghi lượt khiến file chạm ngưỡng thì nén **ngay trong lần ghi đó** (một lần sửa duy nhất, không tách thành 2 lần ghi), để không ghi đè lượt AI kia đang viết dở.
+- **Cách nén:**
+  1. Chuyển nguyên văn các lượt cũ sang `chat.archive.md` (nối vào cuối; file này không được Synapse theo dõi, chỉ đọc khi cần tra lại).
+  2. Giữ nguyên văn **2 lượt mới nhất** trong mục 3 để AI kia còn ngữ cảnh trả lời.
+  3. Mục 1: thêm 1–2 dòng cho mỗi mốc (quyết định, file chính, commit hash). Mục 1 dài quá 10 dòng thì gộp các mốc cũ nhất lại.
+  4. Mục 2: cập nhật danh sách việc còn mở và ai đang giữ việc.
+- **Không bỏ thông tin chưa xong:** việc `OPEN`, câu hỏi chưa được trả lời, `ETA` còn hạn phải nằm lại ở mục 2 hoặc trong 2 lượt giữ lại.
+
 ## Được tự cài công cụ (chủ máy cho phép, 2026-11-18)
 
 - Được tự cài mọi repo, MCP server, skill, CLI, thư viện cần cho việc — **không cần hỏi trước**. Thiếu công cụ thì cài, đừng dừng lại báo "không có".
@@ -26,4 +37,4 @@
    - Không dùng cron/timer poll bên phía Claude; chỉ Gemini đặt lịch theo dõi `chat.md` (hoặc chủ máy gọi Claude khi có `READY FOR REVIEW`).
    - Gom góp ý thành 1 lượt hoàn chỉnh (`batch review`).
    - Các task UI, docs, CSS, test đơn giản → Gemini tự làm, tự test và chốt `DONE` (báo 1 dòng trong `chat.md`).
-   - Sau mỗi mốc `DONE`, Gemini nén thread cũ thành 3–5 dòng ở **Mục 1** của `chat.md` để giữ `chat.md` gọn (< 150 dòng).
+   - Nén `chat.md`: xem mục "Nén `chat.md`" ở trên.
