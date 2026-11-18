@@ -98,6 +98,10 @@ export async function createSynapseServer(options: CreateServerOptions): Promise
     if (!body || typeof body.agent !== 'string' || !body.agent.trim() || typeof body.event !== 'string') {
       return reply.code(400).send({ error: 'Missing agent or event' });
     }
+    // Hooks are global per agent install; only show agents working inside the watched workspace.
+    if (body.workspaceRoot && !isInsideDir(sync.workspaceRoot, body.workspaceRoot)) {
+      return { ok: true, ignored: 'other workspace' };
+    }
     const updated = presence.ingest(body, sync.getAllDocuments());
     return { ok: true, presence: updated };
   });
@@ -326,6 +330,11 @@ function hostOf(url: string): string | undefined {
   } catch {
     return undefined;
   }
+}
+
+function isInsideDir(root: string, target: string): boolean {
+  const rel = path.relative(path.resolve(root), path.resolve(target));
+  return rel === '' || (!rel.startsWith('..') && !path.isAbsolute(rel));
 }
 
 export function isLoopbackHost(host: string | undefined): boolean {

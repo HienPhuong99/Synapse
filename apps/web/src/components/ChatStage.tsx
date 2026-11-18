@@ -319,7 +319,7 @@ export function ChatStage({ onOpenSettings, onNewSession }: ChatStageProps) {
 
             {activeDoc.messages.map((msg) => {
               const seenBy = presenceList
-                .filter((p) => p.seenMessageId === msg.id)
+                .filter((p) => p.seenMessageId === msg.id && p.seenFile === activeDoc.filePath)
                 .map((p) => ({ agentId: p.agentId, seenAt: p.seenAt }));
               return (
                 <MessageCard

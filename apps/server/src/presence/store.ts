@@ -24,7 +24,10 @@ function truncateCmd(cmd?: string): string {
 function findMatchingDoc(docs: ChatDocument[], targetPath?: string): ChatDocument | undefined {
   if (!targetPath) return undefined;
   const norm = targetPath.replace(/\\/g, '/').toLowerCase();
-  return docs.find((d) => norm.endsWith(`/${d.filePath.toLowerCase()}`) || norm === d.filePath.toLowerCase());
+  // Longest match wins: ".../examples/chat.md" must not resolve to the root "chat.md".
+  return docs
+    .filter((d) => norm.endsWith(`/${d.filePath.toLowerCase()}`) || norm === d.filePath.toLowerCase())
+    .sort((a, b) => b.filePath.length - a.filePath.length)[0];
 }
 
 function extractEtaFromLatestMessage(doc: ChatDocument | undefined, agentId: string): string | undefined {
@@ -88,6 +91,7 @@ export class PresenceStore {
       since: prev?.since ?? now,
       lastSeenAt: now,
       seenMessageId: lastMsg ? lastMsg.id : prev?.seenMessageId,
+      seenFile: lastMsg ? doc.filePath : prev?.seenFile,
       seenAt: lastMsg ? now : prev?.seenAt,
       eta: prev?.eta,
     };
@@ -110,6 +114,7 @@ export class PresenceStore {
     let status: PresenceStatus = prev?.status ?? 'idle';
     let detail = payload.detail;
     let seenMessageId = prev?.seenMessageId;
+    let seenFile = prev?.seenFile;
     let seenAt = prev?.seenAt;
     let eta = payload.eta ?? prev?.eta;
     let alertBody: string | undefined;
@@ -162,10 +167,11 @@ export class PresenceStore {
         status = 'working';
         detail = baseName ? `Đọc ${baseName}` : `Đang ${tool || 'tìm kiếm'}`;
         if (targetPath && isChatMdFilename(targetPath)) {
-          const matchedDoc = findMatchingDoc(docs, targetPath) ?? docs[0];
+          const matchedDoc = findMatchingDoc(docs, targetPath);
           const lastMsg = matchedDoc?.messages[matchedDoc.messages.length - 1];
           if (lastMsg) {
             seenMessageId = lastMsg.id;
+            seenFile = matchedDoc?.filePath;
             seenAt = now;
           }
         }
@@ -180,10 +186,11 @@ export class PresenceStore {
       status = 'thinking';
       detail = 'Đang tổng hợp kết quả';
       if (targetPath && isChatMdFilename(targetPath)) {
-        const matchedDoc = findMatchingDoc(docs, targetPath) ?? docs[0];
+        const matchedDoc = findMatchingDoc(docs, targetPath);
         const lastMsg = matchedDoc?.messages[matchedDoc.messages.length - 1];
         if (lastMsg) {
           seenMessageId = lastMsg.id;
+            seenFile = matchedDoc?.filePath;
           seenAt = now;
         }
       }
@@ -200,6 +207,7 @@ export class PresenceStore {
       since,
       lastSeenAt: now,
       seenMessageId,
+      seenFile,
       seenAt,
       eta,
     };

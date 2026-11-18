@@ -135,4 +135,30 @@ describe('Presence HTTP API', () => {
     const cc = JSON.stringify({ hook_event_name: 'PreToolUse', tool_name: 'Bash', tool_input: { command: 'ls' } });
     assert.equal(hookReply(normalizeHookInput('claude', cc), cc), '{}');
   });
+
+  it('ties "seen" to the right file and ignores other workspaces', async () => {
+    const store = new PresenceStore(() => undefined);
+    const turn = (who: string, body: string) => ['### `[' + who + ' | 2026-11-18 10:00 +07]`', '', body, ''];
+    const root = parseChatMd(['# Root', '', ...turn('Claude', 'A')].join('\n'), 'chat.md');
+    const sub = parseChatMd(['# Sub', '', ...turn('Claude', 'B'), ...turn('Gemini', 'C')].join('\n'), 'examples/chat.md');
+    const read = (p: string) => store.ingest({ agent: 'gemini', event: 'PreToolUse', tool: 'Read', path: p }, [root, sub]);
+
+    let got = read('D:/ws/examples/chat.md');
+    assert.equal(got.seenFile, 'examples/chat.md', 'longest path match, not the root chat.md');
+    assert.equal(got.seenMessageId, 'msg_02');
+    got = read('D:/ws/notes/other.chat.md');
+    assert.equal(got.seenFile, 'examples/chat.md', 'unknown board does not fall back to docs[0]');
+
+    const ws = await fs.mkdtemp(path.join(os.tmpdir(), 'synapse-pres-ws-'));
+    const { app } = await createSynapseServer({ workspaceRoot: ws });
+    try {
+      const post = (workspaceRoot: string) =>
+        app.inject({ method: 'POST', url: '/api/presence', payload: { agent: 'claude', event: 'UserPromptSubmit', workspaceRoot } });
+      assert.equal((await post(path.join(os.tmpdir(), 'elsewhere'))).json().ignored, 'other workspace');
+      assert.equal((await post(path.join(ws, 'sub'))).json().presence.status, 'thinking');
+    } finally {
+      await app.close();
+      await fs.rm(ws, { recursive: true, force: true });
+    }
+  });
 });

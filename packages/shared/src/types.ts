@@ -25,6 +25,8 @@ export interface AgentPresence {
   since: string;
   lastSeenAt: string;
   seenMessageId?: string;
+  /** Session file of seenMessageId (ids like msg_01 repeat across files). */
+  seenFile?: string;
   seenAt?: string;
   eta?: string;
 }
