@@ -83,15 +83,50 @@ export function TopMenubar({ onSwitchWorkspace, onOpenSettings }: TopMenubarProp
       <div className="flex min-w-0 items-center gap-2">
         <div className="flex shrink-0 items-center gap-2 pr-1">
           <span
-            className="flex h-6 w-6 items-center justify-center rounded-full text-white shadow-sm"
-            style={{ background: 'linear-gradient(135deg, #7cc4f0, #1d5f8a)' }}
+            className="flex h-7 w-7 items-center justify-center"
+            style={{ filter: 'drop-shadow(0 2px 6px rgba(15, 45, 80, 0.22))' }}
             aria-hidden="true"
           >
-            <svg viewBox="0 0 20 20" fill="none" className="h-3.5 w-3.5">
-              <circle cx="5" cy="10" r="2.25" stroke="currentColor" strokeWidth="1.6" />
-              <circle cx="15" cy="5.5" r="2.25" stroke="currentColor" strokeWidth="1.6" />
-              <circle cx="15" cy="14.5" r="2.25" stroke="currentColor" strokeWidth="1.6" />
-              <path d="M7.1 9.1L12.9 6.4M7.1 10.9L12.9 13.6" stroke="currentColor" strokeWidth="1.6" />
+            <svg viewBox="0 0 64 64" fill="none" className="h-7 w-7">
+              <defs>
+                <linearGradient id="synapse-lg-top" x1="14" y1="12" x2="46" y2="42" gradientUnits="userSpaceOnUse">
+                  <stop offset="0%" stopColor="#E0F2FE" stopOpacity="0.92" />
+                  <stop offset="45%" stopColor="#38BDF8" stopOpacity="0.72" />
+                  <stop offset="100%" stopColor="#0284C7" stopOpacity="0.86" />
+                </linearGradient>
+                <linearGradient id="synapse-lg-bot" x1="20" y1="24" x2="52" y2="52" gradientUnits="userSpaceOnUse">
+                  <stop offset="0%" stopColor="#38BDF8" stopOpacity="0.5" />
+                  <stop offset="100%" stopColor="#1D4ED8" stopOpacity="0.8" />
+                </linearGradient>
+                <linearGradient id="synapse-lg-rim" x1="12" y1="12" x2="52" y2="52" gradientUnits="userSpaceOnUse">
+                  <stop offset="0%" stopColor="#FFFFFF" stopOpacity="0.95" />
+                  <stop offset="50%" stopColor="#7DD3FC" stopOpacity="0.48" />
+                  <stop offset="100%" stopColor="#FFFFFF" stopOpacity="0.82" />
+                </linearGradient>
+              </defs>
+              <path
+                d="M32 10C19.85 10 10 19.85 10 32C10 37.15 11.8 41.9 14.8 45.65C20.5 34.65 30.4 34.1 32 32C33.6 29.9 43.5 29.35 49.2 18.35C45.45 13.25 39.1 10 32 10Z"
+                fill="url(#synapse-lg-top)"
+              />
+              <path
+                d="M32 54C44.15 54 54 44.15 54 32C54 26.85 52.2 22.1 49.2 18.35C43.5 29.35 33.6 29.9 32 32C30.4 34.1 20.5 34.65 14.8 45.65C18.55 50.75 24.9 54 32 54Z"
+                fill="url(#synapse-lg-bot)"
+              />
+              <circle cx="32" cy="32" r="22" stroke="url(#synapse-lg-rim)" strokeWidth="2" />
+              <path
+                d="M18 22.2C21 17 26.1 13.8 32 13.6"
+                stroke="#FFFFFF"
+                strokeOpacity="0.92"
+                strokeWidth="2.4"
+                strokeLinecap="round"
+              />
+              <path
+                d="M15.2 45.1C20.8 34.6 30.4 34.1 32 32C33.6 29.9 43.2 29.4 48.8 18.9"
+                stroke="#FFFFFF"
+                strokeOpacity="0.84"
+                strokeWidth="1.7"
+                strokeLinecap="round"
+              />
             </svg>
           </span>
           <h1

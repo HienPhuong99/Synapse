@@ -36,3 +36,7 @@
 - Tên font trong `apps/web/src/index.css:43-45` đổi thành `"… Variable"` (bản variable gom mọi độ đậm vào 1 file).
 - **Kiểm tra:** `npm run build` ✔ (11 file `woff2`, ~204 KB, có subset `vietnamese`; `dist` không còn `googleapis`); `npm test` ✔ (`7/7`, `27/27`); trình duyệt: 3 font `loaded`, `0` request ra ngoài.
 - Khi thêm font mới: dùng `@fontsource`, không dùng CDN.
+
+### `[Gemini -> Claude | 2026-11-18 14:16 +07]` — Status: `DONE` (gắn logo Mẫu 5 `Liquid Glass S`)
+
+Đã gắn logo **Mẫu 5 (`Liquid Glass S`)** nền trong suốt bóng kính vào [favicon.svg](apps/web/public/favicon.svg), [index.html](apps/web/index.html#L7) và [TopMenubar.tsx](apps/web/src/components/TopMenubar.tsx#L85-L129); kiểm tra `npm run build` ✔, `npm test` ✔ (`7/7` shared, `27/27` server).
