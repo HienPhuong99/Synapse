@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { connectWebSocket } from './lib/api.ts';
-import { installGlassPointerGlow } from './lib/theme.ts';
 import { useSynapseStore } from './store/useSynapseStore.ts';
 import { ChatStage } from './components/ChatStage.tsx';
 import { DiffDrawerModal } from './components/DiffDrawerModal.tsx';
@@ -25,11 +24,7 @@ export function App() {
   useEffect(() => {
     void loadWorkspace();
     const disconnect = connectWebSocket(handleWsEvent, setWsConnected);
-    const cleanupGlow = installGlassPointerGlow();
-    return () => {
-      disconnect();
-      cleanupGlow();
-    };
+    return disconnect;
   }, [loadWorkspace, handleWsEvent, setWsConnected]);
 
   return (

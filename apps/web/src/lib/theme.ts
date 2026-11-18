@@ -106,29 +106,3 @@ export function applyClearPercent(percent: number, persist = true): number {
   }
   return clamped;
 }
-
-export function installGlassPointerGlow(): () => void {
-  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
-  let rafId = 0;
-  let lastEvent: PointerEvent | null = null;
-
-  const onPointerMove = (e: PointerEvent) => {
-    lastEvent = e;
-    if (rafId || reduceMotion.matches || e.pointerType === 'touch') return;
-    rafId = requestAnimationFrame(() => {
-      rafId = 0;
-      if (!lastEvent || !(lastEvent.target instanceof Element)) return;
-      const glassEl = lastEvent.target.closest('.glass');
-      if (!(glassEl instanceof HTMLElement)) return;
-      const rect = glassEl.getBoundingClientRect();
-      glassEl.style.setProperty('--mx', `${lastEvent.clientX - rect.left}px`);
-      glassEl.style.setProperty('--my', `${lastEvent.clientY - rect.top}px`);
-    });
-  };
-
-  document.addEventListener('pointermove', onPointerMove, { passive: true });
-  return () => {
-    document.removeEventListener('pointermove', onPointerMove);
-    if (rafId) cancelAnimationFrame(rafId);
-  };
-}
