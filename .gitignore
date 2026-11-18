@@ -1,0 +1,7 @@
+node_modules/
+dist/
+.synapse/
+*.tsbuildinfo
+*.log
+.env
+.env.local

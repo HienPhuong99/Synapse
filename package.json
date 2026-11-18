@@ -1,0 +1,22 @@
+{
+  "name": "synapse-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "concurrently -n server,web -c cyan,magenta \"npm run dev -w @synapse/server\" \"npm run dev -w @synapse/web\"",
+    "build": "npm run build -w @synapse/shared && npm run build -w @synapse/server && npm run build -w @synapse/web",
+    "test": "npm test -w @synapse/shared && npm test -w @synapse/server",
+    "start": "node apps/server/dist/index.js",
+    "start:zeroport": "node apps/server/dist/index.js --workspace D:/Code/ZeroPort --port 4321"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.2"
+  }
+}
