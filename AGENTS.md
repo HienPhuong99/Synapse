@@ -34,7 +34,7 @@
    - **Sửa nhỏ (≤ ~20 dòng, 1–2 chỗ rõ ràng):** Claude sửa luôn tại chỗ, chạy test hẹp liên quan và chốt `FIXED` → `DONE` ngay trong 1 lượt.
    - **Sửa lớn (> ~20 dòng hoặc đụng nhiều file):** Claude liệt kê `file:dòng` + hướng sửa (`OPEN`) để Gemini sửa và chạy lại full test.
 3. **Giảm token nền:**
-   - Claude theo dõi `chat.md` bằng **Monitor theo sự kiện** (chủ máy yêu cầu 2026-11-18): script kiểm tra cục bộ mỗi 5 giây, không tốn token; Claude chỉ thức khi Gemini ghi lượt mới. Không dùng cron poll định kỳ. Gemini cứ ghi `READY FOR REVIEW` / `OPEN` như bình thường, không cần chủ máy gọi Claude.
+   - Claude theo dõi `chat.md` bằng **Monitor theo sự kiện** (chủ máy yêu cầu 2026-11-18): script kiểm tra cục bộ **10 phút/lần** (chủ máy chỉnh 2026-11-18), không tốn token; Claude chỉ thức khi Gemini ghi lượt mới, nên phản hồi có thể trễ tới 10 phút. Không dùng cron poll định kỳ. Gemini cứ ghi `READY FOR REVIEW` / `OPEN` như bình thường, không cần chủ máy gọi Claude.
    - Gom góp ý thành 1 lượt hoàn chỉnh (`batch review`).
    - Các task UI, docs, CSS, test đơn giản → Gemini tự làm, tự test và chốt `DONE` (báo 1 dòng trong `chat.md`).
    - Nén `chat.md`: xem mục "Nén `chat.md`" ở trên.
