@@ -140,7 +140,7 @@ export function TopMenubar({ onSwitchWorkspace, onOpenSettings }: TopMenubarProp
         <button
           type="button"
           onClick={onSwitchWorkspace}
-          className="glass-btn hidden h-7 max-w-[280px] items-center gap-1.5 rounded-lg px-2.5 text-left font-mono text-[11.5px] text-[var(--ink-2)] hover:text-[var(--ink)] sm:inline-flex"
+          className="glass-btn hidden h-7 max-w-[280px] items-center gap-1.5 rounded-full px-3 text-left font-mono text-[11.5px] text-[var(--ink-2)] hover:text-[var(--ink)] sm:inline-flex"
           title="Đổi thư mục dự án"
         >
           <FolderGit2 className="h-3.5 w-3.5 shrink-0 text-[var(--accent)]" strokeWidth={1.6} />
@@ -150,7 +150,7 @@ export function TopMenubar({ onSwitchWorkspace, onOpenSettings }: TopMenubarProp
         <button
           type="button"
           onClick={() => void loadWorkspace()}
-          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-[var(--ink-2)] transition-colors hover:bg-[var(--glass-2)] hover:text-[var(--ink)]"
+          className="glass-btn flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[var(--ink-2)] hover:text-[var(--ink)]"
           title="Làm mới workspace"
           aria-label="Làm mới workspace"
         >
@@ -183,7 +183,7 @@ export function TopMenubar({ onSwitchWorkspace, onOpenSettings }: TopMenubarProp
         <button
           type="button"
           onClick={onOpenSettings}
-          className="flex h-7 items-center gap-1.5 rounded-lg px-2 text-xs font-medium text-[var(--ink-2)] transition-colors hover:bg-[var(--glass-2)] hover:text-[var(--ink)]"
+          className="glass-btn flex h-7 items-center gap-1.5 rounded-full px-3 text-xs font-medium text-[var(--ink-2)] hover:text-[var(--ink)]"
           title="Cài đặt API Keys & Ollama"
           aria-label="Cài đặt"
         >

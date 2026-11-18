@@ -4,7 +4,7 @@ const THEME_KEY = 'synapse-glass-theme';
 const CLEAR_KEY = 'synapse-glass-clear';
 
 export function getCurrentTheme(): ThemeMode {
-  return document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+  return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
 }
 
 export function applyTheme(theme: ThemeMode, persist = true): void {
@@ -13,7 +13,7 @@ export function applyTheme(theme: ThemeMode, persist = true): void {
   root.classList.toggle('dark', theme === 'dark');
   const meta = document.querySelector('meta[name="theme-color"]');
   if (meta) {
-    meta.setAttribute('content', theme === 'dark' ? '#0a0f14' : '#eef2f5');
+    meta.setAttribute('content', theme === 'dark' ? '#0b0d10' : '#f8f9fb');
   }
   if (persist) {
     try {

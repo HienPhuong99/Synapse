@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="vi" data-theme="dark">
+<html lang="vi" data-theme="light">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#0a0f14" />
+    <meta name="theme-color" content="#f8f9fb" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>Synapse — Project Thread Observer</title>
     <script>
@@ -13,13 +13,13 @@
           t = localStorage.getItem('synapse-glass-theme');
         } catch (e) {}
         if (!t || t === 'auto') {
-          t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+          t = 'light';
         }
         var root = document.documentElement;
         root.setAttribute('data-theme', t);
         root.classList.toggle('dark', t === 'dark');
         var meta = document.querySelector('meta[name="theme-color"]');
-        if (meta) meta.setAttribute('content', t === 'dark' ? '#0a0f14' : '#eef2f5');
+        if (meta) meta.setAttribute('content', t === 'dark' ? '#0b0d10' : '#f8f9fb');
 
         var c;
         try {

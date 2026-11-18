@@ -183,7 +183,7 @@ export function ChatStage({ onOpenSettings, onNewSession, onOpenDiff }: ChatStag
             >
               {activeDoc.meta.title}
             </h2>
-            <span className="glass-sub rounded-lg px-2 py-0.5 font-mono text-[11px] text-[var(--ink-2)]">
+            <span className="glass-sub rounded-full px-2.5 py-0.5 font-mono text-[11px] text-[var(--ink-2)]">
               {activeDoc.meta.mode}
             </span>
             {orchestratorRunning && (
@@ -456,7 +456,7 @@ export function ChatStage({ onOpenSettings, onNewSession, onOpenDiff }: ChatStag
                     key={a.id}
                     type="button"
                     onClick={() => appendComposerToken(`@${a.id}`)}
-                    className="glass-btn rounded-lg px-2 py-0.5 font-mono text-xs text-[var(--ink-2)] hover:text-[var(--ink)]"
+                    className="glass-btn rounded-full px-2.5 py-0.5 font-mono text-xs text-[var(--ink-2)] hover:text-[var(--ink)]"
                   >
                     @{a.id}
                   </button>

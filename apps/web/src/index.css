@@ -1,44 +1,72 @@
 @import "tailwindcss";
 
 :root {
-  --bg: #eef2f5;
-  --ink: #131a22;
-  --ink-2: rgba(19, 26, 34, 0.74);
-  --ink-3: rgba(19, 26, 34, 0.55);
-  --accent: #1d5f8a;
-  --accent-soft: rgba(29, 95, 138, 0.14);
+  --bg: #f8f9fb;
+  --ink: #111418;
+  --ink-2: rgba(17, 20, 24, 0.72);
+  --ink-3: rgba(17, 20, 24, 0.52);
+  --accent: #1d4ed8;
+  --accent-soft: rgba(29, 78, 216, 0.08);
   --clear: 0.45;
-  --blur: calc(44px - 30px * var(--clear));
-  --sat: calc(150% + 90% * var(--clear));
-  --edge: rgba(255, 255, 255, 0.36);
-  --rim: 0.95;
-  --glass: rgba(255, 255, 255, calc(0.76 - 0.56 * var(--clear)));
-  --glass-2: rgba(255, 255, 255, calc(0.82 - 0.42 * var(--clear)));
-  --glass-bar: rgba(255, 255, 255, calc(0.68 - 0.48 * var(--clear)));
-  --glass-modal: rgba(246, 249, 251, calc(0.97 - 0.08 * var(--clear)));
-  --line: rgba(255, 255, 255, 0.78);
-  --line-soft: rgba(19, 26, 34, 0.08);
-  --hi: rgba(255, 255, 255, 0.95);
-  --shadow: 0 22px 54px rgba(20, 40, 70, 0.12);
-  --shadow-lg: 0 30px 70px rgba(20, 40, 70, 0.2);
-  --btn: #131a22;
+  --blur: calc(42px - 28px * var(--clear));
+  --sat: calc(135% + 55% * var(--clear));
+  --edge: rgba(17, 20, 24, 0.11);
+  --rim: 0.98;
+  --glass: rgba(255, 255, 255, calc(0.76 - 0.36 * var(--clear)));
+  --glass-2: rgba(255, 255, 255, calc(0.84 - 0.28 * var(--clear)));
+  --glass-bar: rgba(255, 255, 255, calc(0.84 - 0.24 * var(--clear)));
+  --glass-modal: rgba(255, 255, 255, calc(0.97 - 0.05 * var(--clear)));
+  --line: rgba(17, 20, 24, 0.12);
+  --line-soft: rgba(17, 20, 24, 0.07);
+  --hi: rgba(255, 255, 255, 0.98);
+  --bevel-low: rgba(15, 23, 42, 0.11);
+  --shadow:
+    0 12px 34px -8px rgba(15, 23, 42, 0.1),
+    0 2px 8px -2px rgba(15, 23, 42, 0.05);
+  --shadow-lg:
+    0 28px 64px -12px rgba(15, 23, 42, 0.18),
+    0 4px 12px rgba(15, 23, 42, 0.06);
+  --btn: #111418;
   --btn-ink: #ffffff;
-  --scrim: rgba(19, 26, 34, 0.24);
-  --code-bg: rgba(19, 26, 34, 0.055);
-  --glow: rgba(255, 255, 255, 0.55);
+  --btn-grad: linear-gradient(180deg, #2b313b 0%, #111418 100%);
+  --pill-grad: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.92) 0%,
+    rgba(239, 242, 247, 0.58) 54%,
+    rgba(255, 255, 255, 0.78) 100%
+  );
+  --pill-shadow:
+    inset 0 2px 3px rgba(255, 255, 255, 0.98),
+    inset 0 -2px 3px rgba(255, 255, 255, 0.78),
+    inset 2px 0 3px rgba(255, 255, 255, 0.65),
+    inset -2px 0 3px rgba(255, 255, 255, 0.55),
+    inset 0 -7px 14px -8px rgba(15, 23, 42, 0.15),
+    0 4px 12px -3px rgba(15, 23, 42, 0.1),
+    0 1px 2px rgba(15, 23, 42, 0.06);
+  --pill-shadow-hover:
+    inset 0 2px 3px rgba(255, 255, 255, 1),
+    inset 0 -2px 3px rgba(255, 255, 255, 0.85),
+    inset 2px 0 3px rgba(255, 255, 255, 0.75),
+    inset -2px 0 3px rgba(255, 255, 255, 0.65),
+    inset 0 -6px 12px -7px rgba(15, 23, 42, 0.14),
+    0 7px 18px -4px rgba(15, 23, 42, 0.14),
+    0 2px 4px rgba(15, 23, 42, 0.07);
+  --scrim: rgba(15, 23, 42, 0.18);
+  --code-bg: rgba(17, 20, 24, 0.045);
+  --glow: rgba(255, 255, 255, 0.75);
 
-  --b1: oklch(0.84 0.09 235);
-  --b2: oklch(0.86 0.08 190);
-  --b3: oklch(0.87 0.08 55);
-  --b4: oklch(0.86 0.06 290);
-  --blob-op: 0.85;
+  --b1: oklch(0.95 0.008 240);
+  --b2: oklch(0.92 0.012 230);
+  --b3: oklch(0.96 0.006 260);
+  --b4: oklch(0.93 0.01 210);
+  --blob-op: 0.75;
 
   --positive: #15803d;
-  --positive-soft: rgba(21, 128, 61, 0.12);
+  --positive-soft: rgba(21, 128, 61, 0.1);
   --negative: #c81e1e;
-  --negative-soft: rgba(200, 30, 30, 0.12);
+  --negative-soft: rgba(200, 30, 30, 0.1);
   --warning: #b45309;
-  --warning-soft: rgba(180, 83, 9, 0.12);
+  --warning-soft: rgba(180, 83, 9, 0.1);
 
   --font-head: "Space Grotesk Variable", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-sans: "Plus Jakarta Sans Variable", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -48,34 +76,54 @@
 }
 
 [data-theme="dark"] {
-  --bg: #0a0f14;
-  --ink: #e8eef4;
-  --ink-2: rgba(232, 238, 244, 0.76);
-  --ink-3: rgba(232, 238, 244, 0.54);
-  --accent: #7cc4f0;
-  --accent-soft: rgba(124, 196, 240, 0.14);
-  --edge: rgba(255, 255, 255, 0.1);
-  --rim: 0.42;
-  --glass: rgba(16, 24, 34, calc(0.76 - 0.54 * var(--clear)));
-  --glass-2: rgba(255, 255, 255, calc(0.12 - 0.07 * var(--clear)));
-  --glass-bar: rgba(10, 15, 20, calc(0.72 - 0.48 * var(--clear)));
-  --glass-modal: rgba(14, 21, 30, calc(0.97 - 0.08 * var(--clear)));
-  --line: rgba(255, 255, 255, 0.14);
+  --bg: #0b0d10;
+  --ink: #f1f5f9;
+  --ink-2: rgba(241, 245, 249, 0.76);
+  --ink-3: rgba(241, 245, 249, 0.54);
+  --accent: #93c5fd;
+  --accent-soft: rgba(147, 197, 253, 0.14);
+  --edge: rgba(255, 255, 255, 0.14);
+  --rim: 0.48;
+  --glass: rgba(22, 26, 32, calc(0.74 - 0.44 * var(--clear)));
+  --glass-2: rgba(255, 255, 255, calc(0.11 - 0.05 * var(--clear)));
+  --glass-bar: rgba(14, 17, 22, calc(0.76 - 0.38 * var(--clear)));
+  --glass-modal: rgba(18, 22, 28, calc(0.97 - 0.05 * var(--clear)));
+  --line: rgba(255, 255, 255, 0.16);
   --line-soft: rgba(255, 255, 255, 0.08);
-  --hi: rgba(255, 255, 255, 0.2);
-  --shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
-  --shadow-lg: 0 32px 84px rgba(0, 0, 0, 0.65);
-  --btn: #7cc4f0;
-  --btn-ink: #0a0f14;
-  --scrim: rgba(4, 8, 12, 0.58);
-  --code-bg: rgba(8, 13, 19, 0.65);
-  --glow: rgba(124, 196, 240, 0.14);
+  --hi: rgba(255, 255, 255, 0.24);
+  --bevel-low: rgba(0, 0, 0, 0.42);
+  --shadow: 0 22px 54px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 32px 84px rgba(0, 0, 0, 0.7);
+  --btn: #f1f5f9;
+  --btn-ink: #0b0d10;
+  --btn-grad: linear-gradient(180deg, #ffffff 0%, #dce3ec 100%);
+  --pill-grad: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.16) 0%,
+    rgba(255, 255, 255, 0.06) 54%,
+    rgba(255, 255, 255, 0.11) 100%
+  );
+  --pill-shadow:
+    inset 0 1.5px 2px rgba(255, 255, 255, 0.32),
+    inset 0 -1.5px 2px rgba(255, 255, 255, 0.14),
+    inset 1.5px 0 2px rgba(255, 255, 255, 0.12),
+    inset -1.5px 0 2px rgba(255, 255, 255, 0.1),
+    0 6px 16px -4px rgba(0, 0, 0, 0.45);
+  --pill-shadow-hover:
+    inset 0 1.5px 2px rgba(255, 255, 255, 0.45),
+    inset 0 -1.5px 2px rgba(255, 255, 255, 0.2),
+    inset 1.5px 0 2px rgba(255, 255, 255, 0.18),
+    inset -1.5px 0 2px rgba(255, 255, 255, 0.15),
+    0 8px 20px -4px rgba(0, 0, 0, 0.6);
+  --scrim: rgba(4, 6, 10, 0.62);
+  --code-bg: rgba(8, 10, 14, 0.65);
+  --glow: rgba(255, 255, 255, 0.12);
 
-  --b1: oklch(0.42 0.12 250);
-  --b2: oklch(0.45 0.10 195);
-  --b3: oklch(0.38 0.12 290);
-  --b4: oklch(0.36 0.08 220);
-  --blob-op: 0.72;
+  --b1: oklch(0.3 0.02 245);
+  --b2: oklch(0.26 0.015 220);
+  --b3: oklch(0.28 0.02 260);
+  --b4: oklch(0.24 0.01 230);
+  --blob-op: 0.68;
 
   --positive: #4cc38a;
   --positive-soft: rgba(76, 195, 138, 0.14);
@@ -240,9 +288,11 @@
   backdrop-filter: blur(var(--blur)) saturate(var(--sat));
   border: 1px solid var(--edge);
   box-shadow:
-    inset 0 1px 0 var(--hi),
-    inset 0 -1px 1px var(--hi),
-    inset 0 -16px 30px -20px var(--hi),
+    inset 0 2px 3px var(--hi),
+    inset 0 -2px 3px var(--hi),
+    inset 2px 0 3px color-mix(in srgb, var(--hi) 65%, transparent),
+    inset -2px 0 3px color-mix(in srgb, var(--hi) 55%, transparent),
+    inset 0 -14px 26px -18px var(--bevel-low),
     var(--shadow);
   transition: background-color 0.45s ease, border-color 0.45s ease, box-shadow 0.45s ease;
 }
@@ -256,11 +306,11 @@
   pointer-events: none;
   z-index: 3;
   background: linear-gradient(
-    145deg,
+    135deg,
     rgba(255, 255, 255, var(--rim)) 0%,
-    rgba(255, 255, 255, 0.1) 34%,
-    rgba(255, 255, 255, 0) 55%,
-    rgba(255, 255, 255, calc(var(--rim) * 0.55)) 100%
+    rgba(255, 255, 255, 0.18) 28%,
+    rgba(255, 255, 255, 0) 52%,
+    rgba(255, 255, 255, calc(var(--rim) * 0.65)) 100%
   );
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite: xor;
@@ -328,28 +378,53 @@
 .glass-sub {
   background: var(--glass-2);
   border: 1px solid var(--line);
-  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+  box-shadow:
+    inset 0 1.5px 2px var(--hi),
+    inset 0 -1px 2px color-mix(in srgb, var(--hi) 50%, transparent),
+    0 2px 6px -2px rgba(15, 23, 42, 0.05);
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .glass-btn {
-  background: var(--glass-2);
+  background: var(--pill-grad);
   border: 1px solid var(--line);
   color: var(--ink);
-  transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
+  box-shadow: var(--pill-shadow);
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.15s ease;
 }
 
 .glass-btn:hover:not(:disabled) {
-  border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
+  border-color: color-mix(in srgb, var(--ink) 22%, var(--line));
+  box-shadow: var(--pill-shadow-hover);
+  transform: translateY(-0.5px);
+}
+
+.glass-btn:active:not(:disabled) {
+  transform: scale(0.975);
 }
 
 .glass-btn-solid {
-  background: var(--btn);
+  background: var(--btn-grad);
+  border: 1px solid color-mix(in srgb, var(--ink) 18%, transparent);
   color: var(--btn-ink);
-  transition: opacity 0.2s ease, transform 0.15s ease;
+  box-shadow:
+    inset 0 1.5px 1.5px rgba(255, 255, 255, 0.36),
+    inset 0 -1.5px 2px rgba(255, 255, 255, 0.12),
+    0 6px 16px -4px rgba(15, 23, 42, 0.26);
+  transition: opacity 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
 }
 
 .glass-btn-solid:hover:not(:disabled) {
-  opacity: 0.92;
+  opacity: 0.94;
+  transform: translateY(-0.5px);
+}
+
+.glass-btn-solid:active:not(:disabled) {
+  transform: scale(0.975);
 }
 
 .glass-input {
@@ -422,10 +497,10 @@
   border-radius: 999px;
   flex: none;
   cursor: pointer;
-  background: var(--glass-2);
+  background: var(--pill-grad);
   border: 1px solid var(--line);
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.08);
-  transition: background-color 0.5s ease, border-color 0.4s ease;
+  box-shadow: var(--pill-shadow);
+  transition: background 0.45s ease, border-color 0.4s ease, box-shadow 0.3s ease;
 }
 
 .theme-toggle::before {
@@ -456,16 +531,19 @@
 .clear-btn {
   width: 30px;
   height: 28px;
-  border-radius: 8px;
+  border-radius: 999px;
   display: grid;
   place-items: center;
   color: var(--ink);
-  transition: background-color 0.2s ease;
+  background: var(--pill-grad);
+  border: 1px solid var(--line);
+  box-shadow: var(--pill-shadow);
+  transition: box-shadow 0.2s ease, transform 0.15s ease;
 }
 
 .clear-btn:hover,
 .clear-btn[aria-expanded="true"] {
-  background: var(--glass-2);
+  box-shadow: var(--pill-shadow-hover);
 }
 
 .clear-btn svg {
