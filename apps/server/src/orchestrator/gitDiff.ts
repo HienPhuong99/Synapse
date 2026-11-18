@@ -55,3 +55,52 @@ export async function readWorkspaceGitDiff(workspaceRoot: string, maxChars = 32_
     truncated,
   };
 }
+
+export async function readWorktreeGitDiff(
+  mainWorkspaceRoot: string,
+  wtPath: string,
+  fallbackBranch?: string,
+  maxChars = 32_000
+): Promise<GitDiffPayload> {
+  const inside = await runGit(wtPath, ['rev-parse', '--is-inside-work-tree']);
+  if (!inside.ok || inside.stdout.trim() !== 'true') {
+    return {
+      isGitRepo: false,
+      statusShort: '',
+      diffStat: '',
+      diff: '',
+      truncated: false,
+    };
+  }
+
+  const [mainHeadRes, branchRes, statusRes] = await Promise.all([
+    runGit(mainWorkspaceRoot, ['rev-parse', '--verify', 'HEAD']),
+    runGit(wtPath, ['rev-parse', '--abbrev-ref', 'HEAD']),
+    runGit(wtPath, ['status', '--short']),
+  ]);
+
+  let diffBase = 'HEAD';
+  if (mainHeadRes.ok && mainHeadRes.stdout.trim()) {
+    const mainHead = mainHeadRes.stdout.trim();
+    const baseRes = await runGit(wtPath, ['merge-base', mainHead, 'HEAD']);
+    diffBase = baseRes.ok && baseRes.stdout.trim() ? baseRes.stdout.trim() : mainHead;
+  }
+
+  const [statRes, diffRes] = await Promise.all([
+    runGit(wtPath, ['diff', diffBase, '--stat']),
+    runGit(wtPath, ['diff', diffBase]),
+  ]);
+
+  const rawDiff = diffRes.stdout;
+  const truncated = rawDiff.length > maxChars;
+  const diff = truncated ? `${rawDiff.slice(0, maxChars)}\n... [diff truncated at ${maxChars} chars]` : rawDiff;
+
+  return {
+    isGitRepo: true,
+    branch: (branchRes.ok ? branchRes.stdout.trim() : '') || fallbackBranch,
+    statusShort: statusRes.stdout.trimEnd(),
+    diffStat: statRes.stdout.trimEnd(),
+    diff,
+    truncated,
+  };
+}

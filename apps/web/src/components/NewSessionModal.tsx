@@ -184,52 +184,75 @@ export function NewSessionModal({ open, onClose }: NewSessionModalProps) {
               </button>
             </div>
             <div className="space-y-2">
-              {agents.map((a, idx) => (
-                <div
-                  key={idx}
-                  className="grid grid-cols-12 items-center gap-2 rounded-lg border border-[rgba(237,237,237,0.08)] bg-[#19191b] p-2"
-                >
-                  <input
-                    value={a.id}
-                    onChange={(e) => updateAgent(idx, { id: e.target.value })}
-                    placeholder="id"
-                    className="col-span-2 h-8 rounded border border-[rgba(237,237,237,0.08)] bg-[#141415] px-2 font-mono text-xs text-[#ededed]"
-                  />
-                  <input
-                    value={a.name}
-                    onChange={(e) => updateAgent(idx, { name: e.target.value })}
-                    placeholder="Tên"
-                    className="col-span-3 h-8 rounded border border-[rgba(237,237,237,0.08)] bg-[#141415] px-2 text-xs text-[#ededed]"
-                  />
-                  <select
-                    value={a.provider}
-                    onChange={(e) => updateAgent(idx, { provider: e.target.value as ProviderKind })}
-                    className="col-span-3 h-8 rounded border border-[rgba(237,237,237,0.08)] bg-[#141415] px-2 text-xs text-[#ededed]"
+              {agents.map((a, idx) => {
+                const isCli = a.provider === 'claude-code' || a.provider === 'gemini-cli';
+                return (
+                  <div
+                    key={idx}
+                    className="space-y-1.5 rounded-lg border border-[rgba(237,237,237,0.08)] bg-[#19191b] p-2"
                   >
-                    <option value="simulator">Simulator (Demo)</option>
-                    <option value="claude-code">Claude Code CLI</option>
-                    <option value="gemini-cli">Gemini CLI</option>
-                    <option value="gemini">Google Gemini API</option>
-                    <option value="anthropic">Anthropic Claude API</option>
-                    <option value="openai">OpenAI API</option>
-                    <option value="ollama">Ollama (Local)</option>
-                  </select>
-                  <input
-                    value={a.model}
-                    onChange={(e) => updateAgent(idx, { model: e.target.value })}
-                    placeholder="model"
-                    className="col-span-3 h-8 rounded border border-[rgba(237,237,237,0.08)] bg-[#141415] px-2 font-mono text-xs text-[#ededed]"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setAgents((prev) => prev.filter((_, i) => i !== idx))}
-                    className="col-span-1 flex h-8 items-center justify-center text-[#85858b] hover:text-[#e5484d]"
-                    aria-label="Xóa agent"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" strokeWidth={1.5} />
-                  </button>
-                </div>
-              ))}
+                    <div className="grid grid-cols-12 items-center gap-2">
+                      <input
+                        value={a.id}
+                        onChange={(e) => updateAgent(idx, { id: e.target.value })}
+                        placeholder="id"
+                        className="col-span-2 h-8 rounded border border-[rgba(237,237,237,0.08)] bg-[#141415] px-2 font-mono text-xs text-[#ededed]"
+                      />
+                      <input
+                        value={a.name}
+                        onChange={(e) => updateAgent(idx, { name: e.target.value })}
+                        placeholder="Tên"
+                        className="col-span-3 h-8 rounded border border-[rgba(237,237,237,0.08)] bg-[#141415] px-2 text-xs text-[#ededed]"
+                      />
+                      <select
+                        value={a.provider}
+                        onChange={(e) => {
+                          const nextProvider = e.target.value as ProviderKind;
+                          const cliNext = nextProvider === 'claude-code' || nextProvider === 'gemini-cli';
+                          updateAgent(idx, { provider: nextProvider, ...(cliNext ? {} : { worktree: undefined }) });
+                        }}
+                        className="col-span-3 h-8 rounded border border-[rgba(237,237,237,0.08)] bg-[#141415] px-2 text-xs text-[#ededed]"
+                      >
+                        <option value="simulator">Simulator (Demo)</option>
+                        <option value="claude-code">Claude Code CLI</option>
+                        <option value="gemini-cli">Gemini CLI</option>
+                        <option value="gemini">Google Gemini API</option>
+                        <option value="anthropic">Anthropic Claude API</option>
+                        <option value="openai">OpenAI API</option>
+                        <option value="ollama">Ollama (Local)</option>
+                      </select>
+                      <input
+                        value={a.model}
+                        onChange={(e) => updateAgent(idx, { model: e.target.value })}
+                        placeholder="model"
+                        className="col-span-3 h-8 rounded border border-[rgba(237,237,237,0.08)] bg-[#141415] px-2 font-mono text-xs text-[#ededed]"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setAgents((prev) => prev.filter((_, i) => i !== idx))}
+                        className="col-span-1 flex h-8 items-center justify-center text-[#85858b] hover:text-[#e5484d]"
+                        aria-label="Xóa agent"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" strokeWidth={1.5} />
+                      </button>
+                    </div>
+                    {isCli && (
+                      <label className="inline-flex cursor-pointer items-center gap-1.5 pl-0.5 text-[11px] text-[#a1a1a6]">
+                        <input
+                          type="checkbox"
+                          checked={Boolean(a.worktree)}
+                          onChange={(e) => updateAgent(idx, { worktree: e.target.checked ? true : undefined })}
+                          className="h-3.5 w-3.5 rounded border-[rgba(237,237,237,0.2)] bg-[#141415] accent-[#ededed]"
+                        />
+                        <span>
+                          Chạy trong Git worktree riêng (
+                          <span className="font-mono text-[#ededed]">synapse/{a.id || 'agent'}</span>)
+                        </span>
+                      </label>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
 

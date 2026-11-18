@@ -51,6 +51,16 @@ export interface AgentConfig {
   model: string;
   color: string;
   system_prompt?: string;
+  worktree?: boolean;
+}
+
+export interface WorktreeInfo {
+  agentId: string;
+  path: string;
+  branch: string;
+  diffStat: string;
+  aheadCount: number;
+  dirty: boolean;
 }
 
 export interface ChatSessionMeta {

@@ -131,6 +131,7 @@ function normalizeAgent(raw: Partial<AgentConfig>, idx: number): AgentConfig {
     model: String(raw.model || 'synapse-sim-1'),
     color: String(raw.color || AGENT_COLORS[idx % AGENT_COLORS.length]),
     system_prompt: raw.system_prompt ? String(raw.system_prompt) : undefined,
+    ...(raw.worktree === true ? { worktree: true } : {}),
   };
 }
 
@@ -650,6 +651,7 @@ export function serializeChatMd(doc: ChatDocument): string {
       };
       if (a.role) out.role = a.role;
       if (a.system_prompt) out.system_prompt = a.system_prompt;
+      if (a.worktree) out.worktree = true;
       return out;
     }),
   };

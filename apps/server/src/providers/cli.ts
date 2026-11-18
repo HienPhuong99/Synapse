@@ -27,9 +27,14 @@ export function buildCliPrompt(ctx: ProviderPromptContext, resumed: boolean): st
   return [
     buildSystemPrompt({ ...ctx, fileExcerpts: [] }), // the CLI reads files itself
     `Bạn đang được Synapse gọi ở chế độ headless, ngay trong thư mục dự án: được đọc/sửa code và chạy lệnh build/test.`,
+    agent.worktree
+      ? `Bạn đang chạy trong Git worktree riêng (${ctx.cwd}); sau lượt này Synapse sẽ tự commit thay đổi code vào branch riêng. KHÔNG sửa chat.md / *.chat.md trong worktree; hãy dùng MCP post_message (nếu có) hoặc trả lời trực tiếp để Synapse ghi lại.`
+      : '',
     `Câu trả lời cuối cùng của bạn sẽ được Synapse TỰ ghi vào "${document.filePath}". KHÔNG tự sửa file đó.`,
     buildConversationTranscript({ ...document, messages }, agent.id),
-  ].join('\n\n');
+  ]
+    .filter(Boolean)
+    .join('\n\n');
 }
 
 function quoteForCmd(arg: string): string {

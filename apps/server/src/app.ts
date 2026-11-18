@@ -19,7 +19,8 @@ import {
 import { registerMcpRoute } from './mcp/server.js';
 import { getWorkspaceFileTree, readSafeWorkspaceFile } from './orchestrator/context.js';
 import { ConversationOrchestrator } from './orchestrator/engine.js';
-import { readWorkspaceGitDiff } from './orchestrator/gitDiff.js';
+import { readWorkspaceGitDiff, readWorktreeGitDiff } from './orchestrator/gitDiff.js';
+import { WorktreeError, WorktreeManager } from './orchestrator/worktrees.js';
 import { PresenceStore } from './presence/store.js';
 import { WorkspaceSync } from './sync/watcher.js';
 
@@ -32,6 +33,7 @@ export async function createSynapseServer(options: CreateServerOptions): Promise
   app: FastifyInstance;
   sync: WorkspaceSync;
   orchestrator: ConversationOrchestrator;
+  worktrees: WorktreeManager;
 }> {
   const app = Fastify({ logger: false });
   // No CORS: the UI is same-origin (built) or proxied by Vite (dev). Reject anything a
@@ -58,10 +60,12 @@ export async function createSynapseServer(options: CreateServerOptions): Promise
   const presence = new PresenceStore(broadcast);
   let sync: WorkspaceSync;
   let orchestrator: ConversationOrchestrator;
+  let worktrees: WorktreeManager;
 
   const initWorkspace = async (rootDir: string) => {
     const nextSync = new WorkspaceSync(rootDir);
-    const nextOrch = new ConversationOrchestrator(nextSync, broadcast, presence);
+    const nextWorktrees = new WorktreeManager(rootDir);
+    const nextOrch = new ConversationOrchestrator(nextSync, broadcast, presence, nextWorktrees);
     await nextOrch.loadSettings();
 
     nextSync.on('updated', ({ document, insights, source }) => {
@@ -76,6 +80,7 @@ export async function createSynapseServer(options: CreateServerOptions): Promise
 
     await nextSync.start();
     sync = nextSync;
+    worktrees = nextWorktrees;
     orchestrator = nextOrch;
   };
 
@@ -100,8 +105,12 @@ export async function createSynapseServer(options: CreateServerOptions): Promise
     if (!body || typeof body.agent !== 'string' || !body.agent.trim() || typeof body.event !== 'string') {
       return reply.code(400).send({ error: 'Missing agent or event' });
     }
-    // Hooks are global per agent install; only show agents working inside the watched workspace.
-    if (body.workspaceRoot && !isInsideDir(sync.workspaceRoot, body.workspaceRoot)) {
+    // Hooks are global per agent install; only show agents working inside the watched workspace or its worktrees.
+    if (
+      body.workspaceRoot &&
+      !isInsideDir(sync.workspaceRoot, body.workspaceRoot) &&
+      !worktrees.isRegisteredPath(body.workspaceRoot)
+    ) {
       return { ok: true, ignored: 'other workspace' };
     }
     const updated = presence.ingest(body, sync.getAllDocuments());
@@ -302,14 +311,60 @@ export async function createSynapseServer(options: CreateServerOptions): Promise
     return reply.code(400).send({ error: `Unknown action: ${action}` });
   });
 
-  app.get('/api/git/diff', async () => readWorkspaceGitDiff(sync.workspaceRoot));
-
-  app.post<{ Body: { path: string; reviewerId?: string } }>('/api/sessions/review', async (req, reply) => {
-    const { path: relPath, reviewerId } = req.body;
-    if (!relPath) return reply.code(400).send({ error: 'Missing path' });
-    orchestrator.runInBackground(relPath, orchestrator.runDiffReview(relPath, reviewerId));
-    return { ok: true, status: orchestrator.getStatus(relPath) };
+  app.get<{ Querystring: { agentId?: string } }>('/api/git/diff', async (req, reply) => {
+    const agentId = req.query.agentId?.trim();
+    if (!agentId) {
+      return readWorkspaceGitDiff(sync.workspaceRoot);
+    }
+    const wtPath = await worktrees.resolveWorktreePath(agentId);
+    if (!wtPath) {
+      return reply.code(404).send({ error: `Không tìm thấy worktree cho @${agentId}` });
+    }
+    return readWorktreeGitDiff(sync.workspaceRoot, wtPath, worktrees.getBranchName(agentId));
   });
+
+  app.get('/api/worktrees', async () => ({
+    worktrees: await worktrees.listWorktrees(),
+  }));
+
+  app.post<{ Body: { agentId?: string } }>('/api/worktrees/merge', async (req, reply) => {
+    const agentId = req.body?.agentId?.trim();
+    if (!agentId) return reply.code(400).send({ error: 'Missing agentId' });
+    try {
+      const result = await worktrees.mergeWorktree(agentId);
+      return { ok: true, ...result };
+    } catch (err) {
+      if (err instanceof WorktreeError) {
+        return reply.code(err.statusCode).send({ error: err.message, conflicts: err.conflicts });
+      }
+      throw err;
+    }
+  });
+
+  app.post<{ Body: { agentId?: string } }>('/api/worktrees/remove', async (req, reply) => {
+    const agentId = req.body?.agentId?.trim();
+    if (!agentId) return reply.code(400).send({ error: 'Missing agentId' });
+    try {
+      await orchestrator.stopAllAndWait();
+      await worktrees.removeWorktree(agentId);
+      return { ok: true };
+    } catch (err) {
+      if (err instanceof WorktreeError) {
+        return reply.code(err.statusCode).send({ error: err.message });
+      }
+      throw err;
+    }
+  });
+
+  app.post<{ Body: { path: string; reviewerId?: string; worktreeAgentId?: string } }>(
+    '/api/sessions/review',
+    async (req, reply) => {
+      const { path: relPath, reviewerId, worktreeAgentId } = req.body;
+      if (!relPath) return reply.code(400).send({ error: 'Missing path' });
+      orchestrator.runInBackground(relPath, orchestrator.runDiffReview(relPath, reviewerId, worktreeAgentId));
+      return { ok: true, status: orchestrator.getStatus(relPath) };
+    }
+  );
 
   app.post<{ Body: { path: string; keepLatest?: number } }>('/api/sessions/compact', async (req, reply) => {
     const { path: relPath, keepLatest = 2 } = req.body;
@@ -393,6 +448,9 @@ export async function createSynapseServer(options: CreateServerOptions): Promise
     },
     get orchestrator() {
       return orchestrator;
+    },
+    get worktrees() {
+      return worktrees;
     },
   };
 }

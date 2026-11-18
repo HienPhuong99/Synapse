@@ -23,7 +23,8 @@ import { isValidHttpUrl, sendNtfyNotification } from '../presence/notify.js';
 import type { PresenceStore } from '../presence/store.js';
 import type { WorkspaceSync } from '../sync/watcher.js';
 import { readSafeWorkspaceFile } from './context.js';
-import { readWorkspaceGitDiff } from './gitDiff.js';
+import { readWorkspaceGitDiff, readWorktreeGitDiff } from './gitDiff.js';
+import type { WorktreeManager } from './worktrees.js';
 
 interface ActiveRun {
   controller: AbortController;
@@ -82,7 +83,8 @@ export class ConversationOrchestrator {
   constructor(
     private readonly sync: WorkspaceSync,
     private readonly emitEvent: (event: WsServerEvent) => void,
-    private readonly presence?: PresenceStore
+    private readonly presence?: PresenceStore,
+    private readonly worktrees?: WorktreeManager
   ) {
     this.settingsPath = path.join(os.homedir(), '.synapse', 'settings.json');
   }
@@ -92,6 +94,14 @@ export class ConversationOrchestrator {
       run.controller.abort();
     }
     this.activeRuns.clear();
+  }
+
+  async stopAllAndWait(): Promise<void> {
+    const pending = [...this.activeRuns.values()].map((r) => r.done).filter(Boolean) as Promise<void>[];
+    this.stopAll();
+    if (pending.length > 0) {
+      await Promise.allSettled(pending);
+    }
   }
 
   async loadSettings(): Promise<ProviderSettings> {
@@ -391,7 +401,7 @@ export class ConversationOrchestrator {
     );
   }
 
-  async runDiffReview(filePath: string, reviewerId?: string): Promise<void> {
+  async runDiffReview(filePath: string, reviewerId?: string, worktreeAgentId?: string): Promise<void> {
     if (this.activeRuns.has(filePath)) {
       throw new Error('Phiên thảo luận này đang chạy một lượt AI khác.');
     }
@@ -405,7 +415,14 @@ export class ConversationOrchestrator {
       doc.meta.agents.find((a) => /review|claude/i.test(`${a.id} ${a.role || ''}`)) ??
       doc.meta.agents[0];
 
-    const gitDiff = await readWorkspaceGitDiff(this.sync.workspaceRoot, 16_000);
+    let gitDiff;
+    if (worktreeAgentId && this.worktrees) {
+      const wtPath = await this.worktrees.resolveWorktreePath(worktreeAgentId);
+      if (!wtPath) throw new Error(`Không tìm thấy worktree cho @${worktreeAgentId}.`);
+      gitDiff = await readWorktreeGitDiff(this.sync.workspaceRoot, wtPath, this.worktrees.getBranchName(worktreeAgentId), 16_000);
+    } else {
+      gitDiff = await readWorkspaceGitDiff(this.sync.workspaceRoot, 16_000);
+    }
     if (!gitDiff.isGitRepo) {
       throw new Error('Thư mục hiện tại không phải Git repository.');
     }
@@ -505,6 +522,11 @@ export class ConversationOrchestrator {
     let streamedContent = '';
 
     try {
+      const workCwd =
+        agent.worktree && this.worktrees
+          ? await this.worktrees.ensureWorktree(agent.id)
+          : this.sync.workspaceRoot;
+
       const result = await runAgentProvider(
         {
           agent,
@@ -512,7 +534,7 @@ export class ConversationOrchestrator {
           fileExcerpts,
           settings: this.settings,
           signal,
-          cwd: this.sync.workspaceRoot,
+          cwd: workCwd,
         },
         {
           onActivity: (a) =>
@@ -546,8 +568,10 @@ export class ConversationOrchestrator {
         result.tokensOut ?? 0,
         result.costUsd
       );
+      let committedMsgId = messageId;
       await this.sync.patchRaw(filePath, (raw, latest) => {
         const msgId = nextMessageId(latest.messages);
+        committedMsgId = msgId;
         const newMessage: ChatMessage = {
           id: msgId,
           author: agent.id,
@@ -570,6 +594,10 @@ export class ConversationOrchestrator {
         };
         return appendMessageRaw(raw, newMessage);
       });
+
+      if (agent.worktree && this.worktrees) {
+        await this.worktrees.commitTurnChanges(agent.id, committedMsgId);
+      }
 
       this.emitEvent({ type: 'stream:end', filePath, messageId, status: 'done' });
       this.emitEvent({ type: 'agent:state', filePath, agentId: agent.id, state: 'idle' });

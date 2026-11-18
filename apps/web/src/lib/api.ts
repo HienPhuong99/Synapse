@@ -7,6 +7,7 @@ import type {
   OrchestrationMode,
   ProviderSettings,
   SessionListItem,
+  WorktreeInfo,
   WsServerEvent,
 } from '@synapse/shared';
 
@@ -95,12 +96,27 @@ export const api = {
       body: JSON.stringify({ path, action, agentId }),
     }),
 
-  getGitDiff: () => requestJson<GitDiffPayload>('/api/git/diff'),
+  getGitDiff: (agentId?: string) =>
+    requestJson<GitDiffPayload>(agentId ? `/api/git/diff?agentId=${encodeURIComponent(agentId)}` : '/api/git/diff'),
 
-  triggerDiffReview: (path: string, reviewerId?: string) =>
+  listWorktrees: () => requestJson<{ worktrees: WorktreeInfo[] }>('/api/worktrees'),
+
+  mergeWorktree: (agentId: string) =>
+    requestJson<{ ok: boolean; merged: boolean; commit?: string; summary: string }>('/api/worktrees/merge', {
+      method: 'POST',
+      body: JSON.stringify({ agentId }),
+    }),
+
+  removeWorktree: (agentId: string) =>
+    requestJson<{ ok: boolean }>('/api/worktrees/remove', {
+      method: 'POST',
+      body: JSON.stringify({ agentId }),
+    }),
+
+  triggerDiffReview: (path: string, reviewerId?: string, worktreeAgentId?: string) =>
     requestJson<{ ok: boolean; status: { running: boolean; turnCount: number } }>('/api/sessions/review', {
       method: 'POST',
-      body: JSON.stringify({ path, reviewerId }),
+      body: JSON.stringify({ path, reviewerId, worktreeAgentId }),
     }),
 
   compactSession: (path: string, keepLatest = 2) =>
