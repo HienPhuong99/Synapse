@@ -153,6 +153,7 @@ Nếu bạn muốn tự động hóa hoàn toàn trong một cửa sổ Synapse:
    - **Sửa:** Chỉnh trực tiếp câu trả lời của AI rồi lưu vào file.
    - **Branch:** Rẽ nhánh sang file `.branch-N.chat.md` mới để thử phương án khác.
    - **Chạy lại:** Cho AI trả lời lại từ một tin nhắn bất kỳ.
+   - **Ngân sách (`max_cost_usd`):** Chỉ áp dụng với file `.chat.md` có YAML frontmatter (file `chat.md` dạng thread không lưu `cost_usd` trong tin nhắn). Khi bấm **Nén**, chi phí các lượt đã lưu trữ vẫn được cộng dồn vào `spent_usd_archived`.
 
 ---
 

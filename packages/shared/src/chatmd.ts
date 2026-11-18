@@ -529,14 +529,17 @@ export function truncateMessagesRaw(raw: string, messageId: string, keep: boolea
   return withEol(raw, (text) => `${text.slice(0, cut).trimEnd()}\n`);
 }
 
+function setFrontmatterFieldRaw(text: string, key: string, value: string): string {
+  const m = text.match(/^---\n([\s\S]*?)\n---/);
+  if (!m) return text;
+  const lineRe = new RegExp(`^${key}:.*$`, 'm');
+  const fm = lineRe.test(m[1]) ? m[1].replace(lineRe, `${key}: ${value}`) : `${m[1]}\n${key}: ${value}`;
+  return `---\n${fm}\n---${text.slice(m[0].length)}`;
+}
+
 /** Sets `status:` in YAML frontmatter; files without frontmatter are returned unchanged. */
 export function setStatusRaw(raw: string, status: ChatSessionMeta['status']): string {
-  return withEol(raw, (text) => {
-    const m = text.match(/^---\n([\s\S]*?)\n---/);
-    if (!m) return text;
-    const fm = /^status:.*$/m.test(m[1]) ? m[1].replace(/^status:.*$/m, `status: ${status}`) : `${m[1]}\nstatus: ${status}`;
-    return `---\n${fm}\n---${text.slice(m[0].length)}`;
-  });
+  return withEol(raw, (text) => setFrontmatterFieldRaw(text, 'status', status));
 }
 
 /**
@@ -572,6 +575,27 @@ export function compactChatMdRaw(
   const keptTail = scan.text.slice(firstKeptStart).trimStart();
 
   let updatedHead = headPart;
+  const { hasFrontmatter, meta } = parseFrontmatter(scan.text);
+  if (hasFrontmatter) {
+    const agentMap = new Map(meta.agents.map((a) => [a.id.toLowerCase(), a]));
+    let archivedCost = 0;
+    for (const msg of archivedMessages) {
+      const cfg = agentMap.get(msg.author.toLowerCase());
+      archivedCost += estimateCostUsd(
+        msg.meta?.model ?? cfg?.model,
+        msg.meta?.provider ?? cfg?.provider,
+        msg.meta?.tokens_in ?? 0,
+        msg.meta?.tokens_out ?? 0,
+        msg.meta?.cost_usd
+      );
+    }
+    if (archivedCost > 0) {
+      const prevArchived = typeof meta.spent_usd_archived === 'number' && meta.spent_usd_archived > 0 ? meta.spent_usd_archived : 0;
+      const totalArchived = Number((prevArchived + archivedCost).toFixed(6));
+      updatedHead = setFrontmatterFieldRaw(updatedHead, 'spent_usd_archived', String(totalArchived));
+    }
+  }
+
   const summaryHeading = /(^##\s+1\.\s+[^\n]*\n)([\s\S]*?)(?=\n##\s+2\.|\n---|\s*(?![\s\S]))/m;
   if (summaryHeading.test(updatedHead)) {
     updatedHead = updatedHead.replace(summaryHeading, (_all, hdr: string, body: string) => {
@@ -611,6 +635,9 @@ export function serializeChatMd(doc: ChatDocument): string {
     max_turns: doc.meta.max_turns || 12,
     ...(typeof doc.meta.max_cost_usd === 'number' && doc.meta.max_cost_usd > 0
       ? { max_cost_usd: doc.meta.max_cost_usd }
+      : {}),
+    ...(typeof doc.meta.spent_usd_archived === 'number' && doc.meta.spent_usd_archived > 0
+      ? { spent_usd_archived: doc.meta.spent_usd_archived }
       : {}),
     status: doc.meta.status || 'idle',
     agents: doc.meta.agents.map((a) => {
@@ -707,7 +734,10 @@ export function extractInsights(doc: ChatDocument): InsightsSummary {
   const usageByAgent = new Map<string, AgentUsageStats>();
   let totalTokensIn = 0;
   let totalTokensOut = 0;
-  let totalCostUsd = 0;
+  let totalCostUsd =
+    typeof doc.meta.spent_usd_archived === 'number' && doc.meta.spent_usd_archived > 0
+      ? doc.meta.spent_usd_archived
+      : 0;
 
   let dIdx = 1;
   let aIdx = 1;

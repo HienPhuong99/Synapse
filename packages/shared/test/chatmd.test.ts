@@ -210,5 +210,36 @@ Xác nhận ổn.
 
     assert.equal(estimateCostUsd('synapse-sim-1', 'simulator', 1000, 1000), 0);
     assert.ok(estimateCostUsd('claude-opus-5-5', 'anthropic', 1_000_000, 0) === 5);
+
+    const fmBudget = [
+      '---',
+      'schema: synapse/v1',
+      'title: "Budget Compact"',
+      'mode: round_robin',
+      'max_turns: 10',
+      'max_cost_usd: 0.05',
+      'status: idle',
+      'agents:',
+      '  - id: claude',
+      '    name: "Claude"',
+      '    provider: anthropic',
+      '    model: claude-opus-5-5',
+      '    color: "#f59e0b"',
+      '---',
+      '',
+      '## [msg_01] @claude · 2026-11-18T10:00:00+07:00',
+      '<!-- synapse: {"id":"msg_01","cost_usd":0.03} -->',
+      'Lượt 1',
+      '',
+      '## [msg_02] @claude · 2026-11-18T10:01:00+07:00',
+      '<!-- synapse: {"id":"msg_02","cost_usd":0.02} -->',
+      'Lượt 2',
+    ].join('\n');
+
+    const compactedFm = compactChatMdRaw(fmBudget, 1);
+    assert.ok(compactedFm);
+    const parsedCompacted = parseChatMd(compactedFm.compacted);
+    assert.equal(parsedCompacted.meta.spent_usd_archived, 0.03);
+    assert.ok(Math.abs(extractInsights(parsedCompacted).totalCostUsd - 0.05) < 1e-6);
   });
 });

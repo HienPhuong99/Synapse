@@ -64,6 +64,9 @@ Bắt đầu.
 ## [msg_02] @claude · 2026-11-18T10:01:00+07:00
 <!-- synapse: {"id":"msg_02","model":"claude-opus-5-5","tokens_in":1000,"tokens_out":200,"cost_usd":0.01} -->
 Đã vượt ngân sách.
+
+## [msg_03] @human · 2026-11-18T10:02:00+07:00
+Thử chạy tiếp.
 `,
       'utf8'
     );
@@ -120,7 +123,22 @@ Bắt đầu.
       orchestrator: { running: boolean };
     };
     assert.equal(docData.orchestrator.running, false);
-    assert.equal(docData.document.messages.length, 2);
+    assert.equal(docData.document.messages.length, 3);
     assert.ok(docData.insights.totalCostUsd >= 0.01);
+
+    // Compacting budget.chat.md archives msg_02 into spent_usd_archived and keeps blocking auto loop
+    const compactRes = await fetch(`${baseUrl}/api/sessions/compact`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path: 'budget.chat.md', keepLatest: 1 }),
+    });
+    assert.equal(compactRes.status, 200);
+    const compactData = (await compactRes.json()) as {
+      document: { messages: { id: string }[]; meta: { spent_usd_archived?: number } };
+      insights: { totalCostUsd: number };
+    };
+    assert.equal(compactData.document.messages.length, 1);
+    assert.equal(compactData.document.meta.spent_usd_archived, 0.01);
+    assert.ok(compactData.insights.totalCostUsd >= 0.01);
   });
 });

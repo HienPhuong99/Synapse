@@ -60,6 +60,7 @@ export interface ChatSessionMeta {
   mode: OrchestrationMode;
   max_turns: number;
   max_cost_usd?: number;
+  spent_usd_archived?: number;
   status: SessionStatus;
   agents: AgentConfig[];
   [key: string]: unknown;
