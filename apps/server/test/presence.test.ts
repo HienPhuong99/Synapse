@@ -5,7 +5,7 @@ import path from 'node:path';
 import { after, before, describe, it } from 'node:test';
 import { parseChatMd, type WsServerEvent } from '@synapse/shared';
 import { createSynapseServer } from '../src/app.js';
-import { normalizeHookInput } from '../src/hook.js';
+import { hookReply, normalizeHookInput } from '../src/hook.js';
 import { PresenceStore } from '../src/presence/store.js';
 
 describe('PresenceStore & Hook Normalizer', () => {
@@ -123,5 +123,16 @@ describe('Presence HTTP API', () => {
     const getData = (await getRes.json()) as { presences: { agentId: string }[] };
     assert.equal(getData.presences.length, 1);
     assert.equal(getData.presences[0].agentId, 'gemini');
+  });
+
+  it('never blocks or auto-approves tools from the presence hook', () => {
+    const agPre = JSON.stringify({ hookEventName: 'PreToolUse', toolCall: { name: 'run_command', args: { CommandLine: 'npm test' } } });
+    assert.equal(hookReply(normalizeHookInput('gemini', agPre), agPre), '{"decision":"ask"}');
+    const agPost = JSON.stringify({ hookEventName: 'PostToolUse', toolCall: { name: 'run_command', args: { CommandLine: 'npm test' } } });
+    const post = normalizeHookInput('gemini', agPost);
+    assert.equal(post.event, 'PreToolUse', 'Antigravity post-tool counts as activity');
+    assert.equal(hookReply(post, agPost), '{}');
+    const cc = JSON.stringify({ hook_event_name: 'PreToolUse', tool_name: 'Bash', tool_input: { command: 'ls' } });
+    assert.equal(hookReply(normalizeHookInput('claude', cc), cc), '{}');
   });
 });

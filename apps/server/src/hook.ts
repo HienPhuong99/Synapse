@@ -74,7 +74,10 @@ export function normalizeHookInput(agent: string, rawJson: string, fallbackEvent
   }
 
   const isAntigravity = Boolean(parsed.hookEventName || parsed.toolCall);
-  const event = parsed.hookEventName || parsed.hook_event_name || fallbackEvent;
+  const rawEvent = parsed.hookEventName || parsed.hook_event_name || fallbackEvent;
+  // Antigravity only gets a PostToolUse hook (its PreToolUse must return a permission decision), so its
+  // post-tool event stands in for tool activity. ponytail: status lags one tool behind for Antigravity.
+  const event = isAntigravity && rawEvent === 'PostToolUse' ? 'PreToolUse' : rawEvent;
   const tool = parsed.toolCall?.name || parsed.tool_name;
   const args = parsed.toolCall?.args || parsed.tool_input;
 
@@ -104,9 +107,11 @@ async function main(): Promise<void> {
   const port = Number(process.argv[3] || process.env.SYNAPSE_PORT || 4321);
   const fallbackEvent = process.argv[4] || 'working';
 
+  let reply = '{}';
   try {
     const raw = await readStdinWithTimeout(150);
     const payload = normalizeHookInput(agent, raw, fallbackEvent);
+    reply = hookReply(payload, raw);
 
     await fetch(`http://127.0.0.1:${port}/api/presence`, {
       method: 'POST',
@@ -117,9 +122,18 @@ async function main(): Promise<void> {
   } catch {
     // Always non-blocking
   } finally {
-    // Antigravity hooks expect valid JSON on stdout
-    process.stdout.write('{}\n');
+    process.stdout.write(`${reply}\n`);
   }
+}
+
+/**
+ * What the agent reads back. A presence hook must never change permissions:
+ * Antigravity's PreToolUse requires a decision (`{}` blocks every tool), and "allow" would auto-approve
+ * everything, so answer "ask" (normal prompt, honours "Always Allow"). Everything else gets the no-op `{}`.
+ */
+export function hookReply(payload: PresenceIngestPayload, raw: string): string {
+  const antigravityPreTool = payload.source === 'antigravity-hook' && /"hookEventName"\s*:\s*"PreToolUse"/.test(raw);
+  return antigravityPreTool ? '{"decision":"ask"}' : '{}';
 }
 
 const isMain = process.argv[1] && path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url));
