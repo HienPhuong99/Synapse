@@ -192,9 +192,11 @@ export function NewSessionModal({ open, onClose }: NewSessionModalProps) {
                     className="col-span-3 h-8 rounded border border-[rgba(237,237,237,0.08)] bg-[#141415] px-2 text-xs text-[#ededed]"
                   >
                     <option value="simulator">Simulator (Demo)</option>
-                    <option value="gemini">Google Gemini</option>
-                    <option value="anthropic">Anthropic Claude</option>
-                    <option value="openai">OpenAI</option>
+                    <option value="claude-code">Claude Code CLI</option>
+                    <option value="gemini-cli">Gemini CLI</option>
+                    <option value="gemini">Google Gemini API</option>
+                    <option value="anthropic">Anthropic Claude API</option>
+                    <option value="openai">OpenAI API</option>
                     <option value="ollama">Ollama (Local)</option>
                   </select>
                   <input

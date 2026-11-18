@@ -77,14 +77,33 @@ Khi bắt đầu phiên làm việc, luôn đọc `chat.md` (đặc biệt mục
     "hooks": {
       "UserPromptSubmit": [{ "hooks": [{ "type": "command", "command": "node D:/Code/Synapse/apps/server/dist/hook.js claude" }] }],
       "PreToolUse": [{ "matcher": "*", "hooks": [{ "type": "command", "command": "node D:/Code/Synapse/apps/server/dist/hook.js claude" }] }],
-      "PostToolUse": [{ "matcher": "*", "hooks": [{ "type": "command", "command": "node D:/Code/Synapse/apps/server/dist/hook.js claude" }] }],
+      "PostToolUse": [{ "matcher": "Read", "hooks": [{ "type": "command", "command": "node D:/Code/Synapse/apps/server/dist/hook.js claude" }] }],
       "Notification": [{ "hooks": [{ "type": "command", "command": "node D:/Code/Synapse/apps/server/dist/hook.js claude" }] }],
       "Stop": [{ "hooks": [{ "type": "command", "command": "node D:/Code/Synapse/apps/server/dist/hook.js claude" }] }]
     }
   }
   ```
-- **Cho Antigravity / Gemini (`.agents/hooks.json`):** dùng `SessionStart`, `PreInvocation`, `PreToolUse`, `PostToolUse`, `Stop` gọi `node D:/Code/Synapse/apps/server/dist/hook.js gemini 4321 <TenEvent>` (xem mẫu sẵn tại [.agents/hooks.json](.agents/hooks.json)).
+- **Cho Antigravity / Gemini (`.agents/hooks.json`):** dùng `SessionStart`, `PreInvocation`, `PostToolUse`, `Stop` gọi `node D:/Code/Synapse/apps/server/dist/hook.js gemini 4321 <TenEvent>` (xem mẫu sẵn tại [.agents/hooks.json](.agents/hooks.json); lưu ý không gắn `PreToolUse` nếu không muốn hook can thiệp quyền).
 - Script `hook.js` có timeout ~300ms và luôn thoát `exit 0`, nên khi tắt Synapse cũng không bao giờ làm chậm hoặc treo AI.
+
+### Bước 1.6 (Tùy chọn): Kết nối MCP Server `/mcp` (Đọc/Ghi `chat.md` & Claim file)
+
+Khi Synapse đang chạy tại `http://127.0.0.1:4321`, MCP endpoint được mở sẵn tại `http://127.0.0.1:4321/mcp` với 4 tool: `read_thread`, `post_message`, `claim_files` và `release_files`.
+
+- **Claude Code:**
+  ```bash
+  claude mcp add --transport http synapse http://127.0.0.1:4321/mcp
+  ```
+- **Gemini CLI / Antigravity (`settings.json` / `mcp_config.json`):**
+  ```json
+  {
+    "mcpServers": {
+      "synapse": {
+        "httpUrl": "http://127.0.0.1:4321/mcp"
+      }
+    }
+  }
+  ```
 
 ---
 

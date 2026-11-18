@@ -87,7 +87,7 @@ export const api = {
       body: JSON.stringify({ path, messageId }),
     }),
 
-  controlSession: (path: string, action: 'start' | 'pause' | 'step', agentId?: string) =>
+  controlSession: (path: string, action: 'start' | 'pause' | 'step' | 'council', agentId?: string) =>
     requestJson<{ ok: boolean; status: { running: boolean; turnCount: number } }>('/api/sessions/control', {
       method: 'POST',
       body: JSON.stringify({ path, action, agentId }),

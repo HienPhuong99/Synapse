@@ -8,6 +8,7 @@ import {
   Settings,
   SkipForward,
   TerminalSquare,
+  Users,
   X,
 } from 'lucide-react';
 import type { ChatMessage } from '@synapse/shared';
@@ -206,6 +207,16 @@ export function ChatStage({ onOpenSettings, onNewSession }: ChatStageProps) {
               >
                 <SkipForward className="h-3.5 w-3.5 text-[#a1a1a6]" strokeWidth={1.5} />
                 1 lượt
+              </button>
+              <button
+                type="button"
+                onClick={() => void api.controlSession(activeDoc.filePath, 'council')}
+                disabled={activeDoc.meta.agents.length < 2}
+                className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-[rgba(237,237,237,0.1)] bg-[#232325] px-3 text-xs font-medium text-[#ededed] transition-colors duration-150 hover:bg-[#2a2a2d] disabled:opacity-40"
+                title="Hội đồng: các agent trả lời song song, chấm chéo ẩn danh và chủ tọa tổng hợp"
+              >
+                <Users className="h-3.5 w-3.5 text-[#a1a1a6]" strokeWidth={1.5} />
+                Hội đồng
               </button>
             </>
           )}

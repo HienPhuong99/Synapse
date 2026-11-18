@@ -1,6 +1,7 @@
 node_modules/
 dist/
 .synapse/
+.claude/settings.local.json
 *.tsbuildinfo
 *.log
 .env
