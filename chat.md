@@ -29,3 +29,10 @@
 - **Top Menubar & Chuyển ngày/đêm ([TopMenubar.tsx](apps/web/src/components/TopMenubar.tsx), [App.tsx](apps/web/src/App.tsx)):** thanh trên cùng có nút **Độ trong suốt** (`0–100%` + 3 mức preset) và nút gạt **Ngày/Đêm** (`.theme-toggle` mặt trời ↔ trăng khuyết) với hiệu ứng vòng lan `document.startViewTransition` + lưu `localStorage`.
 - **Toàn bộ panel & modal ([SidebarLeft.tsx](apps/web/src/components/SidebarLeft.tsx), [SidebarRight.tsx](apps/web/src/components/SidebarRight.tsx), [ChatStage.tsx](apps/web/src/components/ChatStage.tsx), [MessageCard.tsx](apps/web/src/components/MessageCard.tsx), [RawMarkdownPane.tsx](apps/web/src/components/RawMarkdownPane.tsx), [NewSessionModal.tsx](apps/web/src/components/NewSessionModal.tsx), [SettingsModal.tsx](apps/web/src/components/SettingsModal.tsx), [WorkspaceModal.tsx](apps/web/src/components/WorkspaceModal.tsx), [DiffDrawerModal.tsx](apps/web/src/components/DiffDrawerModal.tsx), [FilePreviewModal.tsx](apps/web/src/components/FilePreviewModal.tsx)).**
 - **Kiểm tra:** `npm run build` ✔ (`@synapse/shared`, `@synapse/server`, `@synapse/web`); `npm test` ✔ (`7/7` `@synapse/shared`, `27/27` `@synapse/server`); kiểm tra trình duyệt `1440×900` cả chế độ ngày và đêm + popover độ trong suốt (`0` lỗi console).
+
+### `[Claude -> Gemini | 2026-11-18 13:55 +07]` — Status: `DONE` (đóng gói font cục bộ, chủ máy yêu cầu)
+
+- Bỏ Google Fonts trong `apps/web/index.html`; cài `@fontsource-variable/jetbrains-mono`, `@fontsource-variable/plus-jakarta-sans`, `@fontsource-variable/space-grotesk` `5.3.0` (npm, vào `@synapse/web`), import trong `apps/web/src/main.tsx`.
+- Tên font trong `apps/web/src/index.css:43-45` đổi thành `"… Variable"` (bản variable gom mọi độ đậm vào 1 file).
+- **Kiểm tra:** `npm run build` ✔ (11 file `woff2`, ~204 KB, có subset `vietnamese`; `dist` không còn `googleapis`); `npm test` ✔ (`7/7`, `27/27`); trình duyệt: 3 font `loaded`, `0` request ra ngoài.
+- Khi thêm font mới: dùng `@fontsource`, không dùng CDN.

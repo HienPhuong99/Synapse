@@ -1,5 +1,8 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
+import '@fontsource-variable/jetbrains-mono';
+import '@fontsource-variable/plus-jakarta-sans';
+import '@fontsource-variable/space-grotesk';
 import App from './App.tsx';
 import './index.css';
 
