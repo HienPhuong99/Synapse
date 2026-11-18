@@ -65,30 +65,30 @@ Khi bắt đầu phiên làm việc, luôn đọc `chat.md` (đặc biệt mục
 ## 3. Thread trao đổi (ghi nối tiếp bên dưới)
 ```
 
-> **Mẹo Git:** Nếu không muốn đẩy log trao đổi AI lên repo công khai, bạn có thể thêm `chat.md`, `AGENTS.md`, `CLAUDE.md` vào `.gitignore` của dự án.
+> **Mẹo Git:** Nếu không muốn đẩy log trao đổi AI lên repo công khai, bạn có thể thêm `chat.md`, `chat.archive.md`, `AGENTS.md`, `CLAUDE.md` vào `.gitignore` của dự án.
 
 ### Bước 1.5 (Tùy chọn): Bật trạng thái trực tiếp (Presence kiểu Messenger)
 
-Để Synapse hiển thị được AI nào đang đọc `chat.md` (**Đã xem**), đang chạy lệnh gì (**Đang làm: chạy `npm test`**), hay đang đứng chờ (**Cần bạn duyệt**), thêm hook sau vào dự án của bạn:
+Để Synapse hiển thị được AI nào đang đọc `chat.md` (**Đã xem**), đang chạy lệnh gì (**Đang làm: chạy `npm test`**), hay đang đứng chờ (**Cần bạn duyệt**), thêm hook sau vào dự án của bạn (nếu chạy Synapse ở cổng khác `4321`, thay `4321` bằng đúng số cổng đang chạy hoặc đặt biến môi trường `SYNAPSE_PORT`):
 
 - **Cho Claude Code (`.claude/settings.local.json`):**
   ```json
   {
     "hooks": {
-      "UserPromptSubmit": [{ "hooks": [{ "type": "command", "command": "node D:/Code/Synapse/apps/server/dist/hook.js claude" }] }],
-      "PreToolUse": [{ "matcher": "*", "hooks": [{ "type": "command", "command": "node D:/Code/Synapse/apps/server/dist/hook.js claude" }] }],
-      "PostToolUse": [{ "matcher": "Read", "hooks": [{ "type": "command", "command": "node D:/Code/Synapse/apps/server/dist/hook.js claude" }] }],
-      "Notification": [{ "hooks": [{ "type": "command", "command": "node D:/Code/Synapse/apps/server/dist/hook.js claude" }] }],
-      "Stop": [{ "hooks": [{ "type": "command", "command": "node D:/Code/Synapse/apps/server/dist/hook.js claude" }] }]
+      "UserPromptSubmit": [{ "hooks": [{ "type": "command", "command": "node D:/Code/Synapse/apps/server/dist/hook.js claude 4321" }] }],
+      "PreToolUse": [{ "matcher": "*", "hooks": [{ "type": "command", "command": "node D:/Code/Synapse/apps/server/dist/hook.js claude 4321" }] }],
+      "PostToolUse": [{ "matcher": "Read", "hooks": [{ "type": "command", "command": "node D:/Code/Synapse/apps/server/dist/hook.js claude 4321" }] }],
+      "Notification": [{ "hooks": [{ "type": "command", "command": "node D:/Code/Synapse/apps/server/dist/hook.js claude 4321" }] }],
+      "Stop": [{ "hooks": [{ "type": "command", "command": "node D:/Code/Synapse/apps/server/dist/hook.js claude 4321" }] }]
     }
   }
   ```
-- **Cho Antigravity / Gemini (`.agents/hooks.json`):** dùng `SessionStart`, `PreInvocation`, `PostToolUse`, `Stop` gọi `node D:/Code/Synapse/apps/server/dist/hook.js gemini 4321 <TenEvent>` (xem mẫu sẵn tại [.agents/hooks.json](.agents/hooks.json); lưu ý không gắn `PreToolUse` nếu không muốn hook can thiệp quyền).
+- **Cho Antigravity / Gemini (`.agents/hooks.json`):** dùng `SessionStart`, `PreInvocation`, `PostToolUse`, `Stop` gọi `node D:/Code/Synapse/apps/server/dist/hook.js gemini 4321 <TenEvent>` (xem cấu trúc mẫu tại [.agents/hooks.json](.agents/hooks.json), nhớ dùng đường dẫn tuyệt đối tới `D:/Code/Synapse/apps/server/dist/hook.js` khi đặt ở dự án khác; không gắn `PreToolUse` nếu không muốn hook can thiệp quyền).
 - Script `hook.js` có timeout ~300ms và luôn thoát `exit 0`, nên khi tắt Synapse cũng không bao giờ làm chậm hoặc treo AI.
 
 ### Bước 1.6 (Tùy chọn): Kết nối MCP Server `/mcp` (Đọc/Ghi `chat.md` & Claim file)
 
-Khi Synapse đang chạy tại `http://127.0.0.1:4321`, MCP endpoint được mở sẵn tại `http://127.0.0.1:4321/mcp` với 4 tool: `read_thread`, `post_message`, `claim_files` và `release_files`.
+Khi Synapse đang chạy tại `http://127.0.0.1:4321` (đổi port nếu bạn chạy cổng khác), MCP endpoint được mở sẵn tại `http://127.0.0.1:4321/mcp` với 4 tool: `read_thread`, `post_message`, `claim_files` và `release_files`.
 
 - **Claude Code:**
   ```bash
@@ -140,15 +140,43 @@ Từ lúc này, mỗi khi một AI ghi vào `chat.md`, **Synapse** sẽ tự đ�
 
 ---
 
-## Phần C — Dùng 2 AI tự nói chuyện qua API ngay trên Web (Không cần mở 2 IDE)
+## Phần C — Gọi trực tiếp CLI từ Web Synapse (`Claude Code CLI` / `Gemini CLI`) — Không cần mua API key riêng
 
-Nếu bạn muốn tự động hóa hoàn toàn trong một cửa sổ Synapse:
+Synapse có thể gọi thẳng `claude` hoặc `gemini` đã cài trên máy theo phiên đăng nhập sẵn có, vừa thảo luận trong `chat.md` / `.chat.md` vừa đọc/sửa code và chạy test trong dự án:
+
+1. **Đăng nhập CLI trước 1 lần ngoài terminal:**
+   - Chạy `claude` để đăng nhập gói Claude Code của bạn (nếu chưa login), rồi `/exit`.
+   - Với `gemini`: để trống `Google Gemini API Key` trong **⚙ Cài đặt** (và không đặt biến môi trường `GEMINI_API_KEY`) nếu muốn dùng phiên đăng nhập CLI.
+   - *Lưu ý thực tế:* Google hiện chặn `gemini-cli` với tài khoản Google cá nhân miễn phí (`IneligibleTierError: free-tier / UNSUPPORTED_CLIENT`) và yêu cầu `GEMINI_API_KEY`, gói Workspace/Vertex, hoặc dùng **Antigravity** theo **Phần B**. Do đó, nếu dùng gói cá nhân miễn phí cho Gemini, khuyến nghị kết hợp **Antigravity (Phần B)** cho phía Gemini + **`Claude Code CLI`** qua Synapse cho phía Claude.
+2. **Cách chạy:**
+   - **Trên `chat.md` có sẵn:** Synapse tự map `@claude` → `claude-code` (`model: default`) và `@gemini` → `gemini-cli` (`model: default`). Chỉ cần nhắn nhắc `@claude` (hoặc bấm **1 lượt** / **Chạy tự động**).
+   - **Tạo phiên `.chat.md` mới (`+ Tạo mới`):** chọn provider **`Claude Code CLI`** hoặc **`Gemini CLI`**, điền `model` là **`default`** (dùng model mặc định của CLI) hoặc tên model CLI hỗ trợ.
+3. **Chạy an toàn trong Git worktree riêng (tùy chọn):**
+   - Trong `+ Tạo mới`, tích **`Chạy trong Git worktree riêng`** ở agent CLI muốn cô lập. Synapse sẽ tạo worktree tại `<thư mục cha>/<tên repo>.synapse-wt/<agentId>` trên nhánh `synapse/<agentId>` và tự commit thay đổi code sau mỗi lượt (loại trừ `chat.md` / `*.chat.md`).
+   - Khi agent làm xong, mở nút **Review diff** → chọn `worktree (<agentId>)` để xem diff và bấm **Merge** vào nhánh chính hoặc **Xóa worktree**.
+4. **Giới hạn quyền headless:**
+   - `Claude Code CLI` chạy với `--permission-mode acceptEdits` và chỉ tự chạy được các lệnh `npm test*`, `npm run *`, `git status*`, `git diff*`, `git log*` (lệnh khác sẽ bị chặn và ghi chú cuối tin nhắn).
+   - `Gemini CLI` chạy với `--approval-mode auto_edit --skip-trust` để tự chạy ở thư mục dự án hoặc worktree mới tạo. **Lưu ý an toàn:** `--skip-trust` cho phép `gemini` nạp `.gemini/settings.json` (hook, MCP server) trong workspace mà không hỏi lại — chỉ mở các repo tin cậy (hoặc kiểm tra `.gemini/` trước) khi chạy agent `gemini-cli`.
+
+---
+
+## Phần D — Dùng qua API Key / `9router` / Ollama (Thảo luận trên Web)
+
+Nếu bạn muốn chạy nhiều agent thuần thảo luận trong `.chat.md` qua API (lưu ý: các provider API như `gemini`, `anthropic`, `openai`, `ollama` chỉ chat trong file `.chat.md`, **không** tự sửa file code hoặc chạy test trên máy):
 
 1. Mở Synapse (`http://127.0.0.1:4321`), bấm biểu tượng **⚙ Cài đặt** ở góc trên bên phải.
-2. Nhập **Google Gemini API Key** và **Anthropic API Key** (hoặc dùng **Ollama** chạy local; key lưu tại `~/.synapse/settings.json`, không ghi vào thư mục dự án).
-3. Nhấn **+ Tạo mới** ở cột trái → tạo file `.chat.md` với danh sách Agent (`@architect`, `@reviewer`... gắn model Gemini / Claude / Ollama / Simulator).
-4. Nhập đề bài vào khung chat bên dưới và bật **Tự chạy AI sau khi gửi** (hoặc bấm **Chạy tự động** / **1 lượt**).
-5. Dùng các nút điều khiển bất cứ lúc nào:
+2. Nhập **Google Gemini API Key** và **Anthropic API Key** (hoặc **OpenAI API Key** / **Ollama Base URL**; cấu hình lưu tại `~/.synapse/settings.json`, không ghi vào repo dự án).
+3. **Dùng với `9router` (hoặc OpenAI-compatible proxy khác):** backend đã đọc sẵn `openaiBaseUrl` / `OPENAI_BASE_URL`:
+   - Đặt biến môi trường trước khi chạy Synapse:
+     ```powershell
+     $env:OPENAI_BASE_URL="http://localhost:20128/v1"
+     $env:OPENAI_API_KEY="<key-tu-dashboard-9router>"
+     ```
+     Hoặc thêm trực tiếp `"openaiBaseUrl": "http://localhost:20128/v1"` và `"openaiApiKey": "..."` vào `~/.synapse/settings.json`.
+   - Khi tạo agent, chọn provider **`OpenAI API`** và điền tên model/combo của `9router`.
+4. Nhấn **+ Tạo mới** ở cột trái → tạo file `.chat.md` với danh sách Agent (`@architect`, `@reviewer`...).
+5. Nhập đề bài vào khung chat bên dưới và bật **Tự chạy AI sau khi gửi** (hoặc bấm **Chạy tự động** / **1 lượt**).
+6. Dùng các nút điều khiển bất cứ lúc nào:
    - **Tạm dừng:** Ngắt stream AI ngay lập tức.
    - **Sửa:** Chỉnh trực tiếp câu trả lời của AI rồi lưu vào file.
    - **Branch:** Rẽ nhánh sang file `.branch-N.chat.md` mới để thử phương án khác.
@@ -161,7 +189,8 @@ Nếu bạn muốn tự động hóa hoàn toàn trong một cửa sổ Synapse:
 
 | Tình huống | Cách xử lý |
 | :--- | :--- |
-| Báo lỗi cổng `4321` đang được dùng | Đổi cổng khác khi chạy: `npm start -- --workspace "D:/Code/MyApp" --port 4322` |
-| Hai AI sửa trùng cùng 1 file code | Luôn yêu cầu AI đầu tiên ghi bảng **chia thư mục/file** trong `chat.md` trước khi bắt đầu code |
+| Báo lỗi cổng `4321` đang được dùng | Đổi cổng khác khi chạy: `npm start -- --workspace "D:/Code/MyApp" --port 4322` (nhớ cập nhật cùng cổng ở hook & URL `/mcp`) |
+| `gemini-cli` báo `IneligibleTierError` (`free-tier`) | Tài khoản Google cá nhân miễn phí không chạy được `gemini-cli`; dùng **Antigravity (Phần B)** hoặc gắn `GEMINI_API_KEY` |
+| Hai AI sửa trùng cùng 1 file code | Bật **Chạy trong Git worktree riêng** cho CLI agent, hoặc yêu cầu AI đầu tiên ghi bảng **chia thư mục/file** trong `chat.md` trước khi code |
 | Đã sửa `chat.md` bằng VS Code nhưng chưa thấy đổi | Kiểm tra đúng file đang mở ở cột trái; bấm nút **Làm mới** (biểu tượng xoay) ở góc trên trái nếu cần |
 | Muốn test thử giao diện mà chưa có API key | Chọn provider **Simulator (Demo)** khi tạo phiên hoặc chạy sẵn file trong `examples/` |
