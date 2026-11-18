@@ -36,6 +36,8 @@ describe('CLI dispatcher provider', () => {
     await fs.writeFile(path.join(dir, 'fake.mjs'), FAKE);
     await fs.writeFile(path.join(dir, 'claude.cmd'), '@node "%~dp0fake.mjs" %*\r\n');
     await fs.writeFile(path.join(dir, 'claude'), `#!/bin/sh\nexec node "${path.join(dir, 'fake.mjs')}" "$@"\n`, { mode: 0o755 });
+    await fs.writeFile(path.join(dir, 'gemini.cmd'), '@node "%~dp0fake.mjs" %*\r\n');
+    await fs.writeFile(path.join(dir, 'gemini'), `#!/bin/sh\nexec node "${path.join(dir, 'fake.mjs')}" "$@"\n`, { mode: 0o755 });
     process.env.PATH = `${dir}${path.delimiter}${oldPath}`;
     process.env.FAKE_LOG = logFile;
   });
@@ -89,5 +91,15 @@ describe('CLI dispatcher provider', () => {
       { name: 'AbortError' }
     );
     assert.ok(Date.now() - started < 8000, 'did not wait for the 20s fake to finish');
+  });
+
+  it('passes --skip-trust and --approval-mode auto_edit to gemini CLI', async () => {
+    const beforeCount = (await fs.readFile(logFile, 'utf8')).trim().split('\n').filter(Boolean).length;
+    const ctx = makeCtx(board);
+    await runCliProvider(ctx, { onThinkingDelta() {}, onContentDelta() {} }, 'gemini');
+    const calls = (await fs.readFile(logFile, 'utf8')).trim().split('\n').map((l) => JSON.parse(l));
+    const geminiCall = calls[beforeCount];
+    assert.ok(geminiCall.args.includes('--skip-trust'), 'passes --skip-trust for worktrees/untrusted workspaces');
+    assert.ok(geminiCall.args.includes('auto_edit'));
   });
 });

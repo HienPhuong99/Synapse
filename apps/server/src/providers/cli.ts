@@ -71,7 +71,7 @@ export async function runCliProvider(
           ...(resumeId ? ['--resume', resumeId] : []),
         ]
       : // ponytail: no --resume for Gemini (it takes "latest"/index, which could grab the user's own session).
-        ['-p', '', '-o', 'stream-json', '--approval-mode', 'auto_edit', ...(model ? ['-m', model] : [])];
+        ['-p', '', '-o', 'stream-json', '--approval-mode', 'auto_edit', '--skip-trust', ...(model ? ['-m', model] : [])];
 
   const env = { ...process.env };
   if (kind === 'gemini' && settings.geminiApiKey) env.GEMINI_API_KEY = settings.geminiApiKey;

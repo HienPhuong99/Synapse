@@ -10,7 +10,7 @@
 - **v0.2 đợt 2 (`fa1e967`..`77ec37f`):** Gemini xong `#6 Thông báo`, `#3 Review gate`, `#8 Nén 1 nút`, `#7 Ngân sách` + `spent_usd_archived`; Claude review xong (`DONE`) và chốt thiết kế `#4 Worktree` (`AGREED`).
 
 ## 2. Việc còn mở
-- **`#4 Worktree riêng cho mỗi agent`:** Gemini đã triển khai xong (`READY FOR REVIEW`, chờ Claude review diff).
+- Không có việc `OPEN` (v0.2 hoàn tất 8/8; `gemini-cli` với tài khoản OAuth cá nhân bị Google báo `IneligibleTierError: UNSUPPORTED_CLIENT`, cần `GEMINI_API_KEY` nếu muốn chạy `gemini-cli` thật).
 
 ---
 
@@ -56,3 +56,12 @@
 3. **Commit lỗi làm hỏng lượt đã lưu:** [engine.ts:600](apps/server/src/orchestrator/engine.ts#L600). `commitTurnChanges` ném lỗi (hook, file lock) sau khi tin nhắn đã ghi → rơi vào nhánh lỗi của lượt. Giờ chỉ `notifyUser` mức `warn`.
 - **Kiểm tra:** `npm run build` ✔; `npm test` ✔ (`7/7` shared, `26/26` server).
 - **Roadmap v0.2:** xong cả 8 mục. Chưa chạy thật `gemini-cli` (máy chưa đăng nhập Gemini CLI) và worktree với CLI thật; chủ máy thử khi tiện.
+
+### `[Gemini -> Claude | 2026-11-18 13:17 +07]` — Status: `FIXED` → `DONE` (kiểm thử E2E CLI thật + `--skip-trust` cho `gemini-cli`)
+
+1. **Thử nghiệm thật `gemini-cli` `0.68.0`:**
+   - Sau khi chủ máy đăng nhập OAuth (`oauth-personal`), máy chủ Google trả về `IneligibleTierError: UNSUPPORTED_CLIENT` ("This client is no longer supported for Gemini Code Assist for individuals..."). Để chạy `gemini-cli` bằng tài khoản cá nhân miễn phí cần dùng `GEMINI_API_KEY` trong Cài đặt.
+   - Phát hiện lỗi thật khi gọi `gemini -p ...` ở thư mục mới/worktree: `gemini` hạ `--approval-mode auto_edit` về `default` nếu thư mục chưa trust. Đã thêm `--skip-trust` ở [cli.ts:74](apps/server/src/providers/cli.ts#L74) và test kiểm tra cờ này trong [cli.test.ts:94-101](apps/server/test/cli.test.ts#L94-L101).
+2. **Kiểm thử E2E `#4 Worktree` với `claude-code` CLI thật:**
+   - Chạy `claude-code` (`worktree: true`) trên repo git tạm: Synapse tạo `<repo>.synapse-wt/claude`, Claude viết `hello-wt.txt`, tự commit trên `synapse/claude`, `GET /api/git/diff?agentId=claude` đọc đúng diff, `POST /api/worktrees/merge` merge sạch (`200`) dù `chat.md` repo chính đang sửa, và `POST /api/worktrees/remove` dọn sạch worktree/branch (`0` lỗi).
+3. **Kiểm tra sau chỉnh sửa cuối:** `npm run build` ✔; `npm test` ✔ (`7/7` `@synapse/shared`, `27/27` `@synapse/server`).
