@@ -1,12 +1,41 @@
 <!doctype html>
-<html lang="vi" class="dark">
+<html lang="vi" data-theme="dark">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#0f0f10" />
+    <meta name="theme-color" content="#0a0f14" />
     <title>Synapse — Project Thread Observer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap"
+      rel="stylesheet"
+    />
+    <script>
+      (function () {
+        var t;
+        try {
+          t = localStorage.getItem('synapse-glass-theme');
+        } catch (e) {}
+        if (!t || t === 'auto') {
+          t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        }
+        var root = document.documentElement;
+        root.setAttribute('data-theme', t);
+        root.classList.toggle('dark', t === 'dark');
+        var meta = document.querySelector('meta[name="theme-color"]');
+        if (meta) meta.setAttribute('content', t === 'dark' ? '#0a0f14' : '#eef2f5');
+
+        var c;
+        try {
+          c = localStorage.getItem('synapse-glass-clear');
+        } catch (e) {}
+        if (c === null || isNaN(+c)) c = 45;
+        root.style.setProperty('--clear', (Math.max(0, Math.min(100, +c)) / 100).toFixed(2));
+      })();
+    </script>
   </head>
-  <body class="bg-[#141415] text-[#ededed] antialiased selection:bg-[#5b9cf6]/25 selection:text-[#ededed]">
+  <body class="antialiased">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

@@ -99,46 +99,54 @@ export function NewSessionModal({ open, onClose }: NewSessionModalProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4">
-      <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-[rgba(237,237,237,0.12)] bg-[#141415] p-6 shadow-2xl">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm"
+      style={{ backgroundColor: 'var(--scrim)' }}
+    >
+      <div className="glass-modal max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-[24px] p-6">
         <div className="mb-5 flex items-center justify-between">
-          <h3 className="text-[15px] font-medium text-[#ededed]">Tạo phòng thảo luận mới</h3>
+          <h3
+            className="text-[16px] font-bold text-[var(--ink)]"
+            style={{ fontFamily: 'var(--font-head)' }}
+          >
+            Tạo phòng thảo luận mới
+          </h3>
           <button
             type="button"
             onClick={onClose}
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-[#85858b] hover:bg-[#232325] hover:text-[#ededed]"
+            className="flex h-8 w-8 items-center justify-center rounded-xl text-[var(--ink-3)] hover:bg-[var(--glass-2)] hover:text-[var(--ink)]"
             aria-label="Đóng"
           >
-            <X className="h-4 w-4" strokeWidth={1.5} />
+            <X className="h-4 w-4" strokeWidth={1.6} />
           </button>
         </div>
 
         <form onSubmit={(e) => void handleSubmit(e)} className="space-y-4">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
-              <label className="mb-1.5 block text-xs text-[#a1a1a6]">Tiêu đề phiên</label>
+              <label className="mb-1.5 block text-xs font-medium text-[var(--ink-2)]">Tiêu đề phiên</label>
               <input
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 required
-                className="h-9 w-full rounded-lg border border-[rgba(237,237,237,0.1)] bg-[#19191b] px-3 text-xs text-[#ededed] focus:border-[#5b9cf6] focus:outline-none"
+                className="glass-input h-9 w-full rounded-xl px-3 text-xs"
               />
             </div>
             <div>
-              <label className="mb-1.5 block text-xs text-[#a1a1a6]">Tên file (.chat.md)</label>
+              <label className="mb-1.5 block text-xs font-medium text-[var(--ink-2)]">Tên file (.chat.md)</label>
               <input
                 value={fileName}
                 onChange={(e) => setFileName(e.target.value)}
                 required
-                className="h-9 w-full rounded-lg border border-[rgba(237,237,237,0.1)] bg-[#19191b] px-3 font-mono text-xs text-[#ededed] focus:border-[#5b9cf6] focus:outline-none"
+                className="glass-input h-9 w-full rounded-xl px-3 font-mono text-xs"
               />
             </div>
             <div>
-              <label className="mb-1.5 block text-xs text-[#a1a1a6]">Chế độ điều phối</label>
+              <label className="mb-1.5 block text-xs font-medium text-[var(--ink-2)]">Chế độ điều phối</label>
               <select
                 value={mode}
                 onChange={(e) => setMode(e.target.value as OrchestrationMode)}
-                className="h-9 w-full rounded-lg border border-[rgba(237,237,237,0.1)] bg-[#19191b] px-3 text-xs text-[#ededed] focus:border-[#5b9cf6] focus:outline-none"
+                className="glass-input h-9 w-full rounded-xl px-3 text-xs"
               >
                 <option value="mention_and_round_robin">@mention ưu tiên + Round-robin</option>
                 <option value="mention">Chỉ theo @mention</option>
@@ -147,18 +155,20 @@ export function NewSessionModal({ open, onClose }: NewSessionModalProps) {
               </select>
             </div>
             <div>
-              <label className="mb-1.5 block text-xs text-[#a1a1a6]">Giới hạn lượt tự chạy</label>
+              <label className="mb-1.5 block text-xs font-medium text-[var(--ink-2)]">Giới hạn lượt tự chạy</label>
               <input
                 type="number"
                 min={1}
                 max={50}
                 value={maxTurns}
                 onChange={(e) => setMaxTurns(Number(e.target.value) || 8)}
-                className="h-9 w-full rounded-lg border border-[rgba(237,237,237,0.1)] bg-[#19191b] px-3 text-xs text-[#ededed] tabular-nums focus:border-[#5b9cf6] focus:outline-none"
+                className="glass-input h-9 w-full rounded-xl px-3 text-xs tabular-nums"
               />
             </div>
             <div className="sm:col-span-2">
-              <label className="mb-1.5 block text-xs text-[#a1a1a6]">Ngân sách tối đa (USD, tùy chọn)</label>
+              <label className="mb-1.5 block text-xs font-medium text-[var(--ink-2)]">
+                Ngân sách tối đa (USD, tùy chọn)
+              </label>
               <input
                 type="number"
                 min={0}
@@ -166,20 +176,22 @@ export function NewSessionModal({ open, onClose }: NewSessionModalProps) {
                 value={maxCostUsd}
                 onChange={(e) => setMaxCostUsd(e.target.value)}
                 placeholder="VD: 0.50 (để trống nếu không giới hạn)"
-                className="h-9 w-full rounded-lg border border-[rgba(237,237,237,0.1)] bg-[#19191b] px-3 text-xs text-[#ededed] tabular-nums focus:border-[#5b9cf6] focus:outline-none"
+                className="glass-input h-9 w-full rounded-xl px-3 text-xs tabular-nums"
               />
             </div>
           </div>
 
           <div>
             <div className="mb-2 flex items-center justify-between">
-              <span className="text-xs font-medium text-[#a1a1a6]">Danh sách Agents ({agents.length})</span>
+              <span className="text-xs font-semibold text-[var(--ink-2)]">
+                Danh sách Agents ({agents.length})
+              </span>
               <button
                 type="button"
                 onClick={addAgent}
-                className="inline-flex h-7 items-center gap-1 rounded-md border border-[rgba(237,237,237,0.1)] bg-[#232325] px-2.5 text-xs text-[#ededed] hover:bg-[#2a2a2d]"
+                className="glass-btn inline-flex h-7 items-center gap-1 rounded-full px-3 text-xs font-medium"
               >
-                <Plus className="h-3.5 w-3.5" strokeWidth={1.5} />
+                <Plus className="h-3.5 w-3.5" strokeWidth={1.6} />
                 Thêm Agent
               </button>
             </div>
@@ -187,22 +199,19 @@ export function NewSessionModal({ open, onClose }: NewSessionModalProps) {
               {agents.map((a, idx) => {
                 const isCli = a.provider === 'claude-code' || a.provider === 'gemini-cli';
                 return (
-                  <div
-                    key={idx}
-                    className="space-y-1.5 rounded-lg border border-[rgba(237,237,237,0.08)] bg-[#19191b] p-2"
-                  >
+                  <div key={idx} className="glass-sub space-y-1.5 rounded-2xl p-2.5">
                     <div className="grid grid-cols-12 items-center gap-2">
                       <input
                         value={a.id}
                         onChange={(e) => updateAgent(idx, { id: e.target.value })}
                         placeholder="id"
-                        className="col-span-2 h-8 rounded border border-[rgba(237,237,237,0.08)] bg-[#141415] px-2 font-mono text-xs text-[#ededed]"
+                        className="glass-input col-span-2 h-8 rounded-lg px-2 font-mono text-xs"
                       />
                       <input
                         value={a.name}
                         onChange={(e) => updateAgent(idx, { name: e.target.value })}
                         placeholder="Tên"
-                        className="col-span-3 h-8 rounded border border-[rgba(237,237,237,0.08)] bg-[#141415] px-2 text-xs text-[#ededed]"
+                        className="glass-input col-span-3 h-8 rounded-lg px-2 text-xs"
                       />
                       <select
                         value={a.provider}
@@ -211,7 +220,7 @@ export function NewSessionModal({ open, onClose }: NewSessionModalProps) {
                           const cliNext = nextProvider === 'claude-code' || nextProvider === 'gemini-cli';
                           updateAgent(idx, { provider: nextProvider, ...(cliNext ? {} : { worktree: undefined }) });
                         }}
-                        className="col-span-3 h-8 rounded border border-[rgba(237,237,237,0.08)] bg-[#141415] px-2 text-xs text-[#ededed]"
+                        className="glass-input col-span-3 h-8 rounded-lg px-2 text-xs"
                       >
                         <option value="simulator">Simulator (Demo)</option>
                         <option value="claude-code">Claude Code CLI</option>
@@ -225,28 +234,28 @@ export function NewSessionModal({ open, onClose }: NewSessionModalProps) {
                         value={a.model}
                         onChange={(e) => updateAgent(idx, { model: e.target.value })}
                         placeholder="model"
-                        className="col-span-3 h-8 rounded border border-[rgba(237,237,237,0.08)] bg-[#141415] px-2 font-mono text-xs text-[#ededed]"
+                        className="glass-input col-span-3 h-8 rounded-lg px-2 font-mono text-xs"
                       />
                       <button
                         type="button"
                         onClick={() => setAgents((prev) => prev.filter((_, i) => i !== idx))}
-                        className="col-span-1 flex h-8 items-center justify-center text-[#85858b] hover:text-[#e5484d]"
+                        className="col-span-1 flex h-8 items-center justify-center text-[var(--ink-3)] hover:text-[var(--negative)]"
                         aria-label="Xóa agent"
                       >
                         <Trash2 className="h-3.5 w-3.5" strokeWidth={1.5} />
                       </button>
                     </div>
                     {isCli && (
-                      <label className="inline-flex cursor-pointer items-center gap-1.5 pl-0.5 text-[11px] text-[#a1a1a6]">
+                      <label className="inline-flex cursor-pointer items-center gap-1.5 pl-0.5 text-[11px] text-[var(--ink-2)]">
                         <input
                           type="checkbox"
                           checked={Boolean(a.worktree)}
                           onChange={(e) => updateAgent(idx, { worktree: e.target.checked ? true : undefined })}
-                          className="h-3.5 w-3.5 rounded border-[rgba(237,237,237,0.2)] bg-[#141415] accent-[#ededed]"
+                          className="h-3.5 w-3.5 rounded accent-[var(--accent)]"
                         />
                         <span>
                           Chạy trong Git worktree riêng (
-                          <span className="font-mono text-[#ededed]">synapse/{a.id || 'agent'}</span>)
+                          <span className="font-mono text-[var(--ink)]">synapse/{a.id || 'agent'}</span>)
                         </span>
                       </label>
                     )}
@@ -257,29 +266,35 @@ export function NewSessionModal({ open, onClose }: NewSessionModalProps) {
           </div>
 
           <div>
-            <label className="mb-1.5 block text-xs text-[#a1a1a6]">Đề bài mở đầu (tùy chọn)</label>
+            <label className="mb-1.5 block text-xs font-medium text-[var(--ink-2)]">
+              Đề bài mở đầu (tùy chọn)
+            </label>
             <textarea
               value={initialPrompt}
               onChange={(e) => setInitialPrompt(e.target.value)}
               rows={3}
-              className="w-full rounded-lg border border-[rgba(237,237,237,0.1)] bg-[#19191b] p-3 text-xs text-[#ededed] focus:border-[#5b9cf6] focus:outline-none"
+              className="glass-input w-full rounded-xl p-3 text-xs"
             />
           </div>
 
-          {error && <p className="text-xs text-[#e5484d]">{error}</p>}
+          {error && (
+            <p className="text-xs font-medium" style={{ color: 'var(--negative)' }}>
+              {error}
+            </p>
+          )}
 
           <div className="flex justify-end gap-2 pt-2">
             <button
               type="button"
               onClick={onClose}
-              className="h-9 rounded-lg border border-[rgba(237,237,237,0.1)] bg-[#232325] px-4 text-xs text-[#ededed] hover:bg-[#2a2a2d]"
+              className="glass-btn h-9 rounded-full px-4 text-xs font-semibold"
             >
               Hủy
             </button>
             <button
               type="submit"
               disabled={submitting}
-              className="h-9 rounded-lg bg-[#ededed] px-4 text-xs font-medium text-[#141415] hover:bg-white disabled:opacity-40"
+              className="glass-btn-solid h-9 rounded-full px-5 text-xs font-semibold disabled:opacity-40"
             >
               {submitting ? 'Đang tạo' : 'Tạo phiên'}
             </button>

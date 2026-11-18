@@ -4,18 +4,18 @@ export function presenceDotColor(status: PresenceStatus): string {
   switch (status) {
     case 'typing':
     case 'working':
-      return '#4cc38a';
+      return 'var(--positive)';
     case 'thinking':
-      return '#5b9cf6';
+      return 'var(--accent)';
     case 'needs_approval':
-      return '#e5a04d';
+      return 'var(--warning)';
     case 'error':
-      return '#e5484d';
+      return 'var(--negative)';
     case 'idle':
-      return '#a1a1a6';
+      return 'var(--ink-2)';
     case 'offline':
     default:
-      return '#52525b';
+      return 'var(--ink-3)';
   }
 }
 

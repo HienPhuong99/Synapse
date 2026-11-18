@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { connectWebSocket } from './lib/api.ts';
+import { installGlassPointerGlow } from './lib/theme.ts';
 import { useSynapseStore } from './store/useSynapseStore.ts';
 import { ChatStage } from './components/ChatStage.tsx';
 import { DiffDrawerModal } from './components/DiffDrawerModal.tsx';
@@ -8,6 +9,7 @@ import { NewSessionModal } from './components/NewSessionModal.tsx';
 import { SettingsModal } from './components/SettingsModal.tsx';
 import { SidebarLeft } from './components/SidebarLeft.tsx';
 import { SidebarRight } from './components/SidebarRight.tsx';
+import { TopMenubar } from './components/TopMenubar.tsx';
 import { WorkspaceModal } from './components/WorkspaceModal.tsx';
 
 export function App() {
@@ -23,21 +25,42 @@ export function App() {
   useEffect(() => {
     void loadWorkspace();
     const disconnect = connectWebSocket(handleWsEvent, setWsConnected);
-    return disconnect;
+    const cleanupGlow = installGlassPointerGlow();
+    return () => {
+      disconnect();
+      cleanupGlow();
+    };
   }, [loadWorkspace, handleWsEvent, setWsConnected]);
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-[#141415] text-[#ededed]">
-      <SidebarLeft
-        onNewSession={() => setNewSessionOpen(true)}
+    <div className="relative flex h-screen w-screen flex-col overflow-hidden text-[var(--ink)]">
+      {/* Ambient Liquid Glass Mesh Background */}
+      <div className="mesh" aria-hidden="true">
+        <i className="b1" />
+        <i className="b2" />
+        <i className="b3" />
+        <i className="b4" />
+      </div>
+
+      {/* Top Glass Menubar with Day/Night & Transparency Controls */}
+      <TopMenubar
         onSwitchWorkspace={() => setWorkspaceModalOpen(true)}
-      />
-      <ChatStage
         onOpenSettings={() => setSettingsOpen(true)}
-        onNewSession={() => setNewSessionOpen(true)}
-        onOpenDiff={() => setDiffOpen(true)}
       />
-      <SidebarRight />
+
+      {/* Main 3-Column Glass Desk */}
+      <div className="relative z-[1] flex min-h-0 flex-1 gap-3 p-3">
+        <SidebarLeft
+          onNewSession={() => setNewSessionOpen(true)}
+          onSwitchWorkspace={() => setWorkspaceModalOpen(true)}
+        />
+        <ChatStage
+          onOpenSettings={() => setSettingsOpen(true)}
+          onNewSession={() => setNewSessionOpen(true)}
+          onOpenDiff={() => setDiffOpen(true)}
+        />
+        <SidebarRight />
+      </div>
 
       <NewSessionModal open={newSessionOpen} onClose={() => setNewSessionOpen(false)} />
       <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />

@@ -49,24 +49,32 @@ export function WorkspaceModal({ open, onClose }: WorkspaceModalProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4">
-      <div className="w-full max-w-lg rounded-2xl border border-[rgba(237,237,237,0.12)] bg-[#141415] p-6 shadow-2xl">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm"
+      style={{ backgroundColor: 'var(--scrim)' }}
+    >
+      <div className="glass-modal w-full max-w-lg rounded-[24px] p-6">
         <div className="mb-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <FolderGit2 className="h-4 w-4 text-[#85858b]" strokeWidth={1.5} />
-            <h3 className="text-[15px] font-medium text-[#ededed]">Trỏ vào thư mục dự án</h3>
+            <FolderGit2 className="h-4 w-4 text-[var(--accent)]" strokeWidth={1.6} />
+            <h3
+              className="text-[16px] font-bold text-[var(--ink)]"
+              style={{ fontFamily: 'var(--font-head)' }}
+            >
+              Trỏ vào thư mục dự án
+            </h3>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-[#85858b] hover:bg-[#232325] hover:text-[#ededed]"
+            className="flex h-8 w-8 items-center justify-center rounded-xl text-[var(--ink-3)] hover:bg-[var(--glass-2)] hover:text-[var(--ink)]"
             aria-label="Đóng"
           >
-            <X className="h-4 w-4" strokeWidth={1.5} />
+            <X className="h-4 w-4" strokeWidth={1.6} />
           </button>
         </div>
 
-        <p className="mb-3 text-xs text-[#a1a1a6]">
+        <p className="mb-3 text-xs text-[var(--ink-2)]">
           Nhập đường dẫn thư mục dự án trên máy (tự động quét cả <code>chat.md</code> và <code>*.chat.md</code>)
         </p>
 
@@ -81,12 +89,12 @@ export function WorkspaceModal({ open, onClose }: WorkspaceModalProps) {
             value={pathInput}
             onChange={(e) => setPathInput(e.target.value)}
             placeholder="D:\Code\ZeroPort"
-            className="h-9 w-full rounded-lg border border-[rgba(237,237,237,0.1)] bg-[#19191b] px-3 font-mono text-xs text-[#ededed] focus:border-[#5b9cf6] focus:outline-none"
+            className="glass-input h-9 w-full rounded-xl px-3 font-mono text-xs"
           />
 
           {recent.length > 0 && (
             <div>
-              <span className="mb-2 block text-xs text-[#85858b]">Chọn nhanh dự án</span>
+              <span className="mb-2 block text-xs font-medium text-[var(--ink-3)]">Chọn nhanh dự án</span>
               <div className="flex flex-col gap-1.5">
                 {recent.map((dir) => {
                   const isCurrent = dir.toLowerCase() === workspaceRoot.toLowerCase();
@@ -96,14 +104,16 @@ export function WorkspaceModal({ open, onClose }: WorkspaceModalProps) {
                       type="button"
                       disabled={submitting}
                       onClick={() => void handleSwitch(dir)}
-                      className={`flex h-9 items-center justify-between rounded-lg border px-3 text-left font-mono text-xs transition-colors duration-150 ${
-                        isCurrent
-                          ? 'border-[rgba(237,237,237,0.16)] bg-[#232325] text-[#ededed]'
-                          : 'border-[rgba(237,237,237,0.08)] bg-[#19191b] text-[#a1a1a6] hover:bg-[#232325] hover:text-[#ededed]'
+                      className={`glass-btn flex h-9 items-center justify-between rounded-xl px-3 text-left font-mono text-xs ${
+                        isCurrent ? 'ring-1 ring-[var(--accent)]/50 text-[var(--ink)]' : 'text-[var(--ink-2)]'
                       }`}
                     >
                       <span className="truncate">{dir}</span>
-                      {isCurrent && <span className="ml-2 shrink-0 text-xs text-[#4cc38a]">đang mở</span>}
+                      {isCurrent && (
+                        <span className="ml-2 shrink-0 text-xs font-semibold" style={{ color: 'var(--positive)' }}>
+                          đang mở
+                        </span>
+                      )}
                     </button>
                   );
                 })}
@@ -111,20 +121,24 @@ export function WorkspaceModal({ open, onClose }: WorkspaceModalProps) {
             </div>
           )}
 
-          {error && <p className="text-xs text-[#e5484d]">{error}</p>}
+          {error && (
+            <p className="text-xs font-medium" style={{ color: 'var(--negative)' }}>
+              {error}
+            </p>
+          )}
 
           <div className="flex justify-end gap-2 pt-2">
             <button
               type="button"
               onClick={onClose}
-              className="h-9 rounded-lg border border-[rgba(237,237,237,0.1)] bg-[#232325] px-4 text-xs text-[#ededed] hover:bg-[#2a2a2d]"
+              className="glass-btn h-9 rounded-full px-4 text-xs font-semibold"
             >
               Hủy
             </button>
             <button
               type="submit"
               disabled={submitting || !pathInput.trim()}
-              className="h-9 rounded-lg bg-[#ededed] px-4 text-xs font-medium text-[#141415] hover:bg-white disabled:opacity-40"
+              className="glass-btn-solid h-9 rounded-full px-5 text-xs font-semibold disabled:opacity-40"
             >
               {submitting ? 'Đang chuyển' : 'Mở dự án'}
             </button>
