@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import {
+  AlertTriangle,
   Columns2,
   Pause,
   Play,
@@ -11,6 +12,7 @@ import {
 } from 'lucide-react';
 import type { ChatMessage } from '@synapse/shared';
 import { api } from '../lib/api.ts';
+import { formatPresenceLabel, presenceDotColor } from '../lib/presence.ts';
 import { useSynapseStore } from '../store/useSynapseStore.ts';
 import { MessageCard } from './MessageCard.tsx';
 import { RawMarkdownPane } from './RawMarkdownPane.tsx';
@@ -24,6 +26,8 @@ export function ChatStage({ onOpenSettings, onNewSession }: ChatStageProps) {
   const {
     activeDoc,
     streams,
+    presences,
+    presenceAlert,
     splitView,
     orchestratorRunning,
     turnCount,
@@ -35,11 +39,33 @@ export function ChatStage({ onOpenSettings, onNewSession }: ChatStageProps) {
     appendComposerToken,
     selectSession,
     clearError,
+    clearPresenceAlert,
   } = useSynapseStore();
 
   const [autoRunOnSend, setAutoRunOnSend] = useState(true);
   const [sending, setSending] = useState(false);
+  const [nowMs, setNowMs] = useState(() => Date.now());
   const feedEndRef = useRef<HTMLDivElement | null>(null);
+
+  const presenceList = Object.values(presences);
+  const needsApprovalList = presenceList.filter((p) => p.status === 'needs_approval');
+  const activeExternalList = presenceList.filter(
+    (p) => p.status === 'working' || p.status === 'thinking' || p.status === 'typing' || p.status === 'needs_approval'
+  );
+
+  useEffect(() => {
+    if (activeExternalList.length === 0) return;
+    const id = setInterval(() => setNowMs(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [activeExternalList.length]);
+
+  useEffect(() => {
+    if (needsApprovalList.length > 0 || presenceAlert) {
+      document.title = `[Cần duyệt] Synapse`;
+    } else {
+      document.title = 'Synapse — Project Thread Observer';
+    }
+  }, [needsApprovalList.length, presenceAlert]);
 
   const activeStream = activeDoc ? streams[activeDoc.filePath] : undefined;
 
@@ -210,6 +236,45 @@ export function ChatStage({ onOpenSettings, onNewSession }: ChatStageProps) {
         </div>
       </header>
 
+      {/* Live Presence Strip */}
+      {presenceList.length > 0 && (
+        <div className="flex flex-wrap items-center gap-3 border-b border-[rgba(237,237,237,0.08)] bg-[#0f0f10] px-5 py-1.5 font-mono text-xs text-[#a1a1a6] tabular-nums">
+          {presenceList.map((p) => (
+            <span key={p.agentId} className="inline-flex items-center gap-1.5">
+              <span
+                className="h-1.5 w-1.5 rounded-full"
+                style={{ backgroundColor: presenceDotColor(p.status) }}
+              />
+              <span className="text-[#ededed]">{p.agentId}</span>
+              <span className="text-[#85858b]">· {formatPresenceLabel(p, nowMs)}</span>
+            </span>
+          ))}
+        </div>
+      )}
+
+      {/* Needs Approval Alert Banner */}
+      {(presenceAlert || needsApprovalList.length > 0) && (
+        <div className="flex items-center justify-between border-b border-[#e5a04d]/30 bg-[#e5a04d]/10 px-5 py-2 text-xs text-[#f2cb96]">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4 shrink-0 text-[#e5a04d]" strokeWidth={1.5} />
+            <span>
+              {presenceAlert?.body ||
+                `${needsApprovalList.map((p) => `${p.agentId}: ${p.detail || 'Cần bạn duyệt'}`).join(' · ')}`}
+            </span>
+          </div>
+          {presenceAlert && (
+            <button
+              type="button"
+              onClick={clearPresenceAlert}
+              className="rounded p-1 hover:bg-[rgba(237,237,237,0.08)]"
+              aria-label="Đóng cảnh báo"
+            >
+              <X className="h-3.5 w-3.5" strokeWidth={1.5} />
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Banners */}
       {(errorBanner || orchestratorNotice) && (
         <div
@@ -241,16 +306,22 @@ export function ChatStage({ onOpenSettings, onNewSession }: ChatStageProps) {
               </div>
             )}
 
-            {activeDoc.messages.map((msg) => (
-              <MessageCard
-                key={msg.id}
-                message={msg}
-                agent={agentsMap.get(msg.author)}
-                onEdit={handleEdit}
-                onBranch={handleBranch}
-                onRerun={handleRerun}
-              />
-            ))}
+            {activeDoc.messages.map((msg) => {
+              const seenBy = presenceList
+                .filter((p) => p.seenMessageId === msg.id)
+                .map((p) => ({ agentId: p.agentId, seenAt: p.seenAt }));
+              return (
+                <MessageCard
+                  key={msg.id}
+                  message={msg}
+                  agent={agentsMap.get(msg.author)}
+                  seenBy={seenBy}
+                  onEdit={handleEdit}
+                  onBranch={handleBranch}
+                  onRerun={handleRerun}
+                />
+              );
+            })}
 
             {streamingCardMsg && (
               <MessageCard
@@ -259,6 +330,23 @@ export function ChatStage({ onOpenSettings, onNewSession }: ChatStageProps) {
                 isStreaming
               />
             )}
+
+            {!streamingCardMsg &&
+              activeExternalList
+                .filter((p) => p.status !== 'needs_approval')
+                .map((p) => (
+                  <div
+                    key={`typing-${p.agentId}`}
+                    className="flex items-center gap-2.5 rounded-xl border border-[rgba(237,237,237,0.08)] bg-[#19191b] px-4 py-2.5 font-mono text-xs text-[#a1a1a6] tabular-nums"
+                  >
+                    <span
+                      className="h-2 w-2 rounded-full"
+                      style={{ backgroundColor: presenceDotColor(p.status) }}
+                    />
+                    <span className="text-[#ededed]">{p.agentId}</span>
+                    <span>· {formatPresenceLabel(p, nowMs)}...</span>
+                  </div>
+                ))}
             <div ref={feedEndRef} />
           </div>
 

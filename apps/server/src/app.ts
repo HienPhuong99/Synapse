@@ -11,11 +11,14 @@ import {
   type AgentConfig,
   type ChatDocument,
   type OrchestrationMode,
+  type PresenceIngestPayload,
   type ProviderSettings,
   type WsServerEvent,
 } from '@synapse/shared';
+import { registerMcpRoute } from './mcp/server.js';
 import { getWorkspaceFileTree, readSafeWorkspaceFile } from './orchestrator/context.js';
 import { ConversationOrchestrator } from './orchestrator/engine.js';
+import { PresenceStore } from './presence/store.js';
 import { WorkspaceSync } from './sync/watcher.js';
 
 export interface CreateServerOptions {
@@ -50,12 +53,13 @@ export async function createSynapseServer(options: CreateServerOptions): Promise
     }
   };
 
+  const presence = new PresenceStore(broadcast);
   let sync: WorkspaceSync;
   let orchestrator: ConversationOrchestrator;
 
   const initWorkspace = async (rootDir: string) => {
     const nextSync = new WorkspaceSync(rootDir);
-    const nextOrch = new ConversationOrchestrator(nextSync, broadcast);
+    const nextOrch = new ConversationOrchestrator(nextSync, broadcast, presence);
     await nextOrch.loadSettings();
 
     nextSync.on('updated', ({ document, insights, source }) => {
@@ -74,13 +78,28 @@ export async function createSynapseServer(options: CreateServerOptions): Promise
   };
 
   await initWorkspace(options.workspaceRoot);
+  registerMcpRoute(app, () => sync);
 
   app.get('/ws', { websocket: true }, (socket) => {
     clients.add(socket);
     socket.send(JSON.stringify({ type: 'sessions:list', sessions: sync.listSessions() } satisfies WsServerEvent));
+    socket.send(JSON.stringify({ type: 'presence:snapshot', presences: presence.list() } satisfies WsServerEvent));
     socket.on('close', () => {
       clients.delete(socket);
     });
+  });
+
+  app.get('/api/presence', async () => ({
+    presences: presence.list(),
+  }));
+
+  app.post<{ Body: PresenceIngestPayload }>('/api/presence', async (req, reply) => {
+    const body = req.body;
+    if (!body || typeof body.agent !== 'string' || !body.agent.trim() || typeof body.event !== 'string') {
+      return reply.code(400).send({ error: 'Missing agent or event' });
+    }
+    const updated = presence.ingest(body, sync.getAllDocuments());
+    return { ok: true, presence: updated };
   });
 
   app.get('/api/health', async () => ({
@@ -283,6 +302,7 @@ export async function createSynapseServer(options: CreateServerOptions): Promise
   }
 
   app.addHook('onClose', async () => {
+    presence.dispose();
     orchestrator.stopAll();
     await sync.stop();
   });

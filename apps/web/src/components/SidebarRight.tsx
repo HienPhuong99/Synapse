@@ -1,9 +1,22 @@
+import { useEffect, useState } from 'react';
 import { CheckCircle2, Circle, Cpu, FileCode2, Lightbulb, ListChecks, Play } from 'lucide-react';
 import { api } from '../lib/api.ts';
+import { formatPresenceLabel, presenceDotColor } from '../lib/presence.ts';
 import { useSynapseStore } from '../store/useSynapseStore.ts';
 
 export function SidebarRight() {
-  const { activeDoc, insights, agentStates, orchestratorRunning, openFilePreview } = useSynapseStore();
+  const { activeDoc, insights, agentStates, presences, orchestratorRunning, openFilePreview } = useSynapseStore();
+  const [nowMs, setNowMs] = useState(() => Date.now());
+
+  const hasActivePresence = Object.values(presences).some(
+    (p) => p.status === 'working' || p.status === 'thinking' || p.status === 'typing' || p.status === 'needs_approval'
+  );
+
+  useEffect(() => {
+    if (!hasActivePresence) return;
+    const id = setInterval(() => setNowMs(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [hasActivePresence]);
 
   if (!activeDoc) {
     return (
@@ -39,15 +52,18 @@ export function SidebarRight() {
 
         <div className="space-y-2">
           {activeDoc.meta.agents.map((agent) => {
+            const p = presences[agent.id.toLowerCase()];
             const runtime = statesForDoc[agent.id]?.state ?? 'idle';
-            const dotColor =
-              runtime === 'streaming'
-                ? 'bg-[#4cc38a]'
+            const dotColor = p
+              ? presenceDotColor(p.status)
+              : runtime === 'streaming'
+                ? '#4cc38a'
                 : runtime === 'thinking'
-                  ? 'bg-[#e5a04d]'
+                  ? '#5b9cf6'
                   : runtime === 'error'
-                    ? 'bg-[#e5484d]'
-                    : 'bg-[#85858b]';
+                    ? '#e5484d'
+                    : '#85858b';
+            const statusText = p ? formatPresenceLabel(p, nowMs) : runtime;
 
             return (
               <div
@@ -63,10 +79,6 @@ export function SidebarRight() {
                     <span className="truncate text-[13px] font-medium text-[#ededed]">{agent.name}</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="inline-flex items-center gap-1.5 font-mono text-xs text-[#85858b]">
-                      <span className={`h-1.5 w-1.5 rounded-full ${dotColor}`} />
-                      {runtime}
-                    </span>
                     <button
                       type="button"
                       disabled={orchestratorRunning}
@@ -79,7 +91,11 @@ export function SidebarRight() {
                     </button>
                   </div>
                 </div>
-                <div className="mt-1.5 flex items-center justify-between gap-2 font-mono text-xs text-[#85858b]">
+                <div className="mt-1.5 flex items-center gap-1.5 font-mono text-xs text-[#a1a1a6] tabular-nums">
+                  <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: dotColor }} />
+                  <span className="truncate">{statusText}</span>
+                </div>
+                <div className="mt-1 flex items-center justify-between gap-2 font-mono text-xs text-[#85858b]">
                   <span>@{agent.id}</span>
                   <span className="truncate">{agent.provider}/{agent.model}</span>
                 </div>

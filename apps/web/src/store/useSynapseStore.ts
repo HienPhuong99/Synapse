@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type {
+  AgentPresence,
   AgentRuntimeState,
   ChatDocument,
   EphemeralStreamState,
@@ -29,6 +30,8 @@ interface SynapseStore {
   turnCount: number;
   orchestratorNotice: string | null;
   agentStates: Record<string, Record<string, { state: AgentRuntimeState; detail?: string }>>;
+  presences: Record<string, AgentPresence>;
+  presenceAlert: { agentId: string; title: string; body: string } | null;
   streams: Record<string, EphemeralStreamState>;
   splitView: boolean;
   composerText: string;
@@ -40,6 +43,7 @@ interface SynapseStore {
   setComposerText: (text: string) => void;
   appendComposerToken: (token: string) => void;
   clearError: () => void;
+  clearPresenceAlert: () => void;
   closeFilePreview: () => void;
 
   loadWorkspace: () => Promise<void>;
@@ -62,6 +66,8 @@ export const useSynapseStore = create<SynapseStore>((set, get) => ({
   turnCount: 0,
   orchestratorNotice: null,
   agentStates: {},
+  presences: {},
+  presenceAlert: null,
   streams: {},
   splitView: false,
   composerText: '',
@@ -77,6 +83,7 @@ export const useSynapseStore = create<SynapseStore>((set, get) => ({
       return { composerText: `${s.composerText}${sep}${token} ` };
     }),
   clearError: () => set({ errorBanner: null, orchestratorNotice: null }),
+  clearPresenceAlert: () => set({ presenceAlert: null }),
   closeFilePreview: () => set({ filePreview: null }),
 
   loadWorkspace: async () => {
@@ -245,6 +252,37 @@ export const useSynapseStore = create<SynapseStore>((set, get) => ({
             orchestratorNotice: event.reason && !event.running ? event.reason : null,
           });
         }
+        break;
+      }
+      case 'presence:snapshot': {
+        const next: Record<string, AgentPresence> = {};
+        for (const p of event.presences) {
+          next[p.agentId] = p;
+        }
+        set({ presences: next });
+        break;
+      }
+      case 'presence:update': {
+        set((s) => ({
+          presences: {
+            ...s.presences,
+            [event.presence.agentId]: event.presence,
+          },
+          presenceAlert:
+            s.presenceAlert?.agentId === event.presence.agentId && event.presence.status !== 'needs_approval'
+              ? null
+              : s.presenceAlert,
+        }));
+        break;
+      }
+      case 'presence:alert': {
+        set({
+          presenceAlert: {
+            agentId: event.agentId,
+            title: event.title,
+            body: event.body,
+          },
+        });
         break;
       }
     }

@@ -67,6 +67,25 @@ Khi bắt đầu phiên làm việc, luôn đọc `chat.md` (đặc biệt mục
 
 > **Mẹo Git:** Nếu không muốn đẩy log trao đổi AI lên repo công khai, bạn có thể thêm `chat.md`, `AGENTS.md`, `CLAUDE.md` vào `.gitignore` của dự án.
 
+### Bước 1.5 (Tùy chọn): Bật trạng thái trực tiếp (Presence kiểu Messenger)
+
+Để Synapse hiển thị được AI nào đang đọc `chat.md` (**Đã xem**), đang chạy lệnh gì (**Đang làm: chạy `npm test`**), hay đang đứng chờ (**Cần bạn duyệt**), thêm hook sau vào dự án của bạn:
+
+- **Cho Claude Code (`.claude/settings.local.json`):**
+  ```json
+  {
+    "hooks": {
+      "UserPromptSubmit": [{ "hooks": [{ "type": "command", "command": "node D:/Code/Synapse/apps/server/dist/hook.js claude" }] }],
+      "PreToolUse": [{ "matcher": "*", "hooks": [{ "type": "command", "command": "node D:/Code/Synapse/apps/server/dist/hook.js claude" }] }],
+      "PostToolUse": [{ "matcher": "*", "hooks": [{ "type": "command", "command": "node D:/Code/Synapse/apps/server/dist/hook.js claude" }] }],
+      "Notification": [{ "hooks": [{ "type": "command", "command": "node D:/Code/Synapse/apps/server/dist/hook.js claude" }] }],
+      "Stop": [{ "hooks": [{ "type": "command", "command": "node D:/Code/Synapse/apps/server/dist/hook.js claude" }] }]
+    }
+  }
+  ```
+- **Cho Antigravity / Gemini (`.agents/hooks.json`):** dùng `SessionStart`, `PreInvocation`, `PreToolUse`, `PostToolUse`, `Stop` gọi `node D:/Code/Synapse/apps/server/dist/hook.js gemini 4321 <TenEvent>` (xem mẫu sẵn tại [.agents/hooks.json](.agents/hooks.json)).
+- Script `hook.js` có timeout ~300ms và luôn thoát `exit 0`, nên khi tắt Synapse cũng không bao giờ làm chậm hoặc treo AI.
+
 ---
 
 ### Bước 2: Bật màn hình theo dõi Synapse

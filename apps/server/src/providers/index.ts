@@ -1,4 +1,5 @@
 import { runAnthropicProvider } from './anthropic.js';
+import { runCliProvider } from './cli.js';
 import { runGeminiProvider } from './gemini.js';
 import { runOpenAICompatProvider } from './openaiCompat.js';
 import { runSimulatorProvider } from './simulator.js';
@@ -19,6 +20,10 @@ export async function runAgentProvider(
       return runOpenAICompatProvider(ctx, callbacks, 'openai');
     case 'ollama':
       return runOpenAICompatProvider(ctx, callbacks, 'ollama');
+    case 'claude-code':
+      return runCliProvider(ctx, callbacks, 'claude');
+    case 'gemini-cli':
+      return runCliProvider(ctx, callbacks, 'gemini');
     default:
       return runSimulatorProvider(ctx, callbacks);
   }

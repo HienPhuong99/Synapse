@@ -22,21 +22,23 @@ const DEFAULT_META: ChatSessionMeta = {
 
 const AGENT_COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ec4899', '#06b6d4', '#8b5cf6'];
 
+// A plain chat.md is a board shared by real coding agents, so its known authors are dispatched to
+// their CLIs (they can read/edit code) rather than the chat-only APIs. model 'default' = the CLI's own.
 const KNOWN_THREAD_AGENTS: Record<string, Partial<AgentConfig>> = {
   claude: {
     id: 'claude',
     name: 'Claude',
-    role: 'Anthropic Claude',
-    provider: 'anthropic',
-    model: 'claude-opus-5-5',
+    role: 'Claude Code CLI',
+    provider: 'claude-code',
+    model: 'default',
     color: '#f59e0b',
   },
   gemini: {
     id: 'gemini',
     name: 'Gemini',
-    role: 'Google Gemini',
-    provider: 'gemini',
-    model: 'gemini-3.8-flash',
+    role: 'Gemini CLI',
+    provider: 'gemini-cli',
+    model: 'default',
     color: '#6366f1',
   },
 };
@@ -301,8 +303,10 @@ function parseMessageBody(rawLines: string[], heading: RawHeadingMatch): ChatMes
 function inferAgentsFromMessages(messages: ChatMessage[]): AgentConfig[] {
   const seen = new Map<string, AgentConfig>();
   let idx = 0;
-  for (const m of messages) {
-    const id = m.author.toLowerCase();
+  // Authors, plus known agents that were only addressed so far (heading target or @mention).
+  const candidates = messages.flatMap((m) => [m.author, ...m.mentions.filter((x) => KNOWN_THREAD_AGENTS[x.toLowerCase()])]);
+  for (const raw of candidates) {
+    const id = raw.toLowerCase();
     if (id === 'human' || id === 'user' || seen.has(id)) continue;
     const preset = KNOWN_THREAD_AGENTS[id];
     if (preset) {

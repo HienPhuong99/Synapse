@@ -180,6 +180,10 @@ export class WorkspaceSync extends EventEmitter {
     return this.docs.get(normalized)?.doc ?? null;
   }
 
+  getAllDocuments(): ChatDocument[] {
+    return Array.from(this.docs.values()).map((e) => e.doc);
+  }
+
   async writeRaw(relPath: string, rawContent: string): Promise<ChatDocument> {
     const absPath = this.resolveSafe(relPath);
     if (!isChatMdFilename(absPath)) {

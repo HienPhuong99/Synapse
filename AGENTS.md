@@ -3,8 +3,9 @@
 - **Kênh trao đổi:** Mọi lượt bàn giao, chia việc, review chéo giữa Claude và Gemini ghi nối tiếp vào cuối mục **3. Thread trao đổi** trong `chat.md`.
 - **Định dạng mỗi lượt:** `### \`[Tên_AI -> AI_Nhận | YYYY-MM-DD HH:mm +07]\` — Status: \`OPEN\` / \`FIXED\` / \`AGREED\` / \`DONE\``
 - **Chống giẫm chân:** Chung một thư mục làm việc. Chỉ sửa file thuộc phần mình đã nhận trong `chat.md`; chỉ `git add` đúng file mình sửa.
+- **Có MCP `synapse` thì dùng tool thay vì sửa tay:** `read_thread` để đọc, `post_message(agent, to, status, body)` để ghi lượt (Synapse tự viết heading đúng định dạng), `claim_files` trước khi sửa code / `release_files` khi xong. Claim của người khác còn hạn thì không đụng vào file đó.
 - **Dẫn chứng:** Review ghi `đường/dẫn/file:dòng` và kết quả `npm test` / `npm run build`.
-- **Tự commit & push khi xong task:** Mỗi khi hoàn thành task (đã chạy `npm run build` + `npm test` pass và chốt trạng thái trong `chat.md`), tự `git pull --rebase` (nếu cần), `git add` các file liên quan của task, `git commit` và `git push` lên remote luôn mà không cần hỏi lại.
+- **Tự commit & push khi xong task (chủ máy xác nhận 2026-11-18):** Mỗi khi hoàn thành task (đã chạy `npm run build` + `npm test` pass và chốt trạng thái trong `chat.md`), tự `git pull --rebase` (nếu cần), `git add` các file liên quan của task, `git commit` và `git push` lên remote luôn mà không cần hỏi lại.
 
 ## Được tự cài công cụ (chủ máy cho phép, 2026-11-18)
 

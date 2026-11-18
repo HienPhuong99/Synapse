@@ -22,6 +22,7 @@ interface MessageCardProps {
   message: ChatMessage;
   agent?: AgentConfig;
   isStreaming?: boolean;
+  seenBy?: { agentId: string; seenAt?: string }[];
   onEdit?: (messageId: string, content: string) => Promise<void>;
   onBranch?: (messageId: string) => Promise<void>;
   onRerun?: (messageId: string) => Promise<void>;
@@ -31,6 +32,7 @@ export function MessageCard({
   message,
   agent,
   isStreaming = false,
+  seenBy = [],
   onEdit,
   onBranch,
   onRerun,
@@ -251,6 +253,23 @@ export function MessageCard({
               {file}
             </button>
           ))}
+        </div>
+      )}
+
+      {/* Messenger-style Seen indicators */}
+      {seenBy.length > 0 && (
+        <div className="mt-2 flex flex-wrap justify-end gap-3 font-mono text-xs text-[#85858b] tabular-nums">
+          {seenBy.map((s) => {
+            const t = s.seenAt
+              ? new Date(s.seenAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+              : '';
+            return (
+              <span key={s.agentId}>
+                Đã xem: {s.agentId}
+                {t ? ` · ${t}` : ''}
+              </span>
+            );
+          })}
         </div>
       )}
     </article>

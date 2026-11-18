@@ -1,0 +1,49 @@
+{
+  "synapse-presence": {
+    "SessionStart": [
+      {
+        "type": "command",
+        "command": "node ../apps/server/dist/hook.js gemini 4321 SessionStart",
+        "timeout": 2
+      }
+    ],
+    "PreInvocation": [
+      {
+        "type": "command",
+        "command": "node ../apps/server/dist/hook.js gemini 4321 PreInvocation",
+        "timeout": 2
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node ../apps/server/dist/hook.js gemini 4321 PreToolUse",
+            "timeout": 2
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node ../apps/server/dist/hook.js gemini 4321 PostToolUse",
+            "timeout": 2
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "type": "command",
+        "command": "node ../apps/server/dist/hook.js gemini 4321 Stop",
+        "timeout": 2
+      }
+    ]
+  }
+}

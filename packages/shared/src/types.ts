@@ -1,10 +1,45 @@
-export type ProviderKind = 'simulator' | 'gemini' | 'anthropic' | 'openai' | 'ollama';
+export type ProviderKind = 'simulator' | 'gemini' | 'anthropic' | 'openai' | 'ollama' | 'claude-code' | 'gemini-cli';
 
 export type OrchestrationMode = 'manual' | 'mention' | 'round_robin' | 'mention_and_round_robin';
 
 export type SessionStatus = 'idle' | 'running' | 'paused' | 'completed';
 
 export type AgentRuntimeState = 'idle' | 'thinking' | 'streaming' | 'waiting' | 'error';
+
+export type PresenceStatus =
+  | 'offline'
+  | 'idle'
+  | 'thinking'
+  | 'working'
+  | 'typing'
+  | 'needs_approval'
+  | 'error';
+
+export interface AgentPresence {
+  agentId: string;
+  status: PresenceStatus;
+  detail?: string;
+  tool?: string;
+  path?: string;
+  workspaceRoot?: string;
+  since: string;
+  lastSeenAt: string;
+  seenMessageId?: string;
+  seenAt?: string;
+  eta?: string;
+}
+
+export interface PresenceIngestPayload {
+  agent: string;
+  source?: 'claude-hook' | 'antigravity-hook' | 'api' | 'cli';
+  event: string;
+  tool?: string;
+  path?: string;
+  command?: string;
+  detail?: string;
+  workspaceRoot?: string;
+  eta?: string;
+}
 
 export interface AgentConfig {
   id: string;
@@ -133,4 +168,7 @@ export type WsServerEvent =
   | { type: 'stream:start'; stream: EphemeralStreamState }
   | { type: 'stream:delta'; filePath: string; messageId: string; deltaContent?: string; deltaThinking?: string }
   | { type: 'stream:end'; filePath: string; messageId: string; status: 'done' | 'stopped' | 'error'; error?: string }
-  | { type: 'orchestrator:status'; filePath: string; running: boolean; turnCount: number; reason?: string };
+  | { type: 'orchestrator:status'; filePath: string; running: boolean; turnCount: number; reason?: string }
+  | { type: 'presence:snapshot'; presences: AgentPresence[] }
+  | { type: 'presence:update'; presence: AgentPresence }
+  | { type: 'presence:alert'; agentId: string; title: string; body: string };

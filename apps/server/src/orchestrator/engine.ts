@@ -17,6 +17,7 @@ import {
   type WsServerEvent,
 } from '@synapse/shared';
 import { runAgentProvider } from '../providers/index.js';
+import type { PresenceStore } from '../presence/store.js';
 import type { WorkspaceSync } from '../sync/watcher.js';
 import { readSafeWorkspaceFile } from './context.js';
 
@@ -37,7 +38,8 @@ export class ConversationOrchestrator {
 
   constructor(
     private readonly sync: WorkspaceSync,
-    private readonly emitEvent: (event: WsServerEvent) => void
+    private readonly emitEvent: (event: WsServerEvent) => void,
+    private readonly presence?: PresenceStore
   ) {
     this.settingsPath = path.join(os.homedir(), '.synapse', 'settings.json');
   }
@@ -265,6 +267,8 @@ export class ConversationOrchestrator {
       }
     }
 
+    this.presence?.markSeen(agent.id, doc);
+    this.presence?.ingest({ agent: agent.id, source: 'api', event: 'thinking' }, [doc]);
     this.emitEvent({ type: 'agent:state', filePath, agentId: agent.id, state: 'thinking' });
     this.emitEvent({
       type: 'stream:start',
@@ -291,14 +295,18 @@ export class ConversationOrchestrator {
           fileExcerpts,
           settings: this.settings,
           signal,
+          cwd: this.sync.workspaceRoot,
         },
         {
+          onActivity: (a) =>
+            this.presence?.ingest({ agent: agent.id, source: 'cli', event: 'PreToolUse', ...a }, [doc]),
           onThinkingDelta: (delta) => {
             streamedThinking += delta;
             this.emitEvent({ type: 'stream:delta', filePath, messageId, deltaThinking: delta });
           },
           onContentDelta: (delta) => {
             if (streamedContent.length === 0) {
+              this.presence?.ingest({ agent: agent.id, source: 'api', event: 'typing' }, [doc]);
               this.emitEvent({ type: 'agent:state', filePath, agentId: agent.id, state: 'streaming' });
             }
             streamedContent += delta;
@@ -337,6 +345,7 @@ export class ConversationOrchestrator {
 
       this.emitEvent({ type: 'stream:end', filePath, messageId, status: 'done' });
       this.emitEvent({ type: 'agent:state', filePath, agentId: agent.id, state: 'idle' });
+      this.presence?.ingest({ agent: agent.id, source: 'api', event: 'idle' }, this.sync.getAllDocuments());
     } catch (err) {
       const aborted = signal.aborted || (err instanceof Error && err.name === 'AbortError');
       const errMsg = err instanceof Error ? err.message : String(err);
@@ -378,6 +387,10 @@ export class ConversationOrchestrator {
         state: aborted ? 'idle' : 'error',
         detail: aborted ? undefined : errMsg,
       });
+      this.presence?.ingest(
+        { agent: agent.id, source: 'api', event: aborted ? 'idle' : 'error', detail: aborted ? undefined : errMsg },
+        this.sync.getAllDocuments()
+      );
 
       if (!aborted) {
         throw err;
