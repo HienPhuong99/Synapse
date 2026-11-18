@@ -6,7 +6,8 @@ import path from 'node:path';
 import { after, before, describe, it } from 'node:test';
 import { promisify } from 'node:util';
 import { createSynapseServer } from '../src/app.js';
-import { isValidHttpUrl } from '../src/presence/notify.js';
+import http from 'node:http';
+import { isValidHttpUrl, sendNtfyNotification } from '../src/presence/notify.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -70,6 +71,30 @@ READY FOR REVIEW
     assert.equal(isValidHttpUrl('javascript:alert(1)'), false);
     assert.equal(isValidHttpUrl('file:///etc/passwd'), false);
     assert.equal(isValidHttpUrl(''), false);
+  });
+
+  it('delivers ntfy pushes with Vietnamese titles', async () => {
+    let got: { url?: string; body: string } = { body: '' };
+    const srv = http.createServer((req, res) => {
+      let body = '';
+      req.on('data', (c) => (body += c));
+      req.on('end', () => {
+        got = { url: req.url, body };
+        res.end('{}');
+      });
+    });
+    await new Promise<void>((r) => srv.listen(0, '127.0.0.1', r));
+    const { port } = srv.address() as { port: number };
+    try {
+      const ok = await sendNtfyNotification(`http://127.0.0.1:${port}/topic`, { title: 'Lỗi ở @claude', body: 'Hỏng rồi', level: 'error' });
+      assert.equal(ok, true);
+      const q = new URL(got.url!, 'http://x').searchParams;
+      assert.equal(q.get('title'), 'Lỗi ở @claude');
+      assert.equal(q.get('priority'), 'high');
+      assert.equal(got.body, 'Hỏng rồi');
+    } finally {
+      srv.close();
+    }
   });
 
   it('returns git diff and sends it to the reviewer agent', async () => {

@@ -19,13 +19,13 @@ export async function sendNtfyNotification(ntfyTopicUrl: string | undefined, msg
 
   const priority = msg.level === 'error' ? 'high' : msg.level === 'warn' ? 'default' : 'low';
   try {
-    const res = await fetch(ntfyTopicUrl.trim(), {
+    // Title rides in the query string: fetch rejects non-Latin-1 header values ("Lỗi ở @claude").
+    const url = new URL(ntfyTopicUrl.trim());
+    url.searchParams.set('title', msg.title);
+    url.searchParams.set('priority', priority);
+    const res = await fetch(url, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'text/plain; charset=utf-8',
-        Title: msg.title,
-        Priority: priority,
-      },
+      headers: { 'Content-Type': 'text/plain; charset=utf-8' },
       body: msg.body,
       signal: AbortSignal.timeout(2000),
     });

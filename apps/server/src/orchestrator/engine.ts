@@ -400,6 +400,10 @@ export class ConversationOrchestrator {
     if (!gitDiff.diff.trim() && !gitDiff.statusShort.trim()) {
       throw new Error('Không có thay đổi Git nào để review.');
     }
+    // Re-check: a loop or another review may have started while git was running.
+    if (this.activeRuns.has(filePath)) {
+      throw new Error('Phiên thảo luận này đang chạy một lượt AI khác.');
+    }
 
     const reviewDoc: ChatDocument = {
       ...doc,
@@ -412,6 +416,8 @@ export class ConversationOrchestrator {
           content: [
             `Review git diff hiện tại (${gitDiff.branch || 'HEAD'}):`,
             gitDiff.diffStat ? `\`\`\`\n${gitDiff.diffStat}\n\`\`\`` : '',
+            // `git diff` skips untracked files; list them so the reviewer knows they exist.
+            gitDiff.statusShort.includes('??') ? `git status --short:\n\`\`\`\n${gitDiff.statusShort}\n\`\`\`` : '',
             'Chỉ tập trung soi lỗi logic, bảo mật, concurrency và edge-case. Nếu ổn ghi `AGREED`, nếu cần sửa ghi rõ `file:line`.',
           ]
             .filter(Boolean)
