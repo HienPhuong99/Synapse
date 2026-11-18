@@ -6,7 +6,6 @@ import {
   extractInsights,
   isChatMdFilename,
   parseChatMd,
-  serializeChatMd,
   type ChatDocument,
   type InsightsSummary,
   type SessionListItem,
@@ -192,18 +191,22 @@ export class WorkspaceSync extends EventEmitter {
     });
   }
 
-  async updateDocument(
+  /**
+   * Re-reads the file inside the per-file queue and applies a raw-text patch
+   * (see appendMessageRaw & co. in @synapse/shared). Never re-serializes the whole file.
+   */
+  async patchRaw(
     relPath: string,
-    mutator: (latestDoc: ChatDocument) => ChatDocument | Promise<ChatDocument>
+    patch: (latestRaw: string, latestDoc: ChatDocument) => string
   ): Promise<ChatDocument> {
     const absPath = this.resolveSafe(relPath);
     return this.writeQueue.enqueue(absPath, async () => {
       const latestRaw = await fs.readFile(absPath, 'utf8');
-      const latestDoc = parseChatMd(latestRaw, this.toRelative(absPath));
-      const updatedDoc = await mutator(latestDoc);
-      const serialized = serializeChatMd(updatedDoc);
-      await this.writeQueue.writeAtomic(absPath, serialized);
-      return this.storeParsed(absPath, serialized, 'server', true);
+      const nextRaw = patch(latestRaw, parseChatMd(latestRaw, this.toRelative(absPath)));
+      if (nextRaw !== latestRaw) {
+        await this.writeQueue.writeAtomic(absPath, nextRaw);
+      }
+      return this.storeParsed(absPath, nextRaw, 'server', true);
     });
   }
 }

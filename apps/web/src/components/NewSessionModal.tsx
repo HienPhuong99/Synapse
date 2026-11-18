@@ -16,7 +16,7 @@ const DEFAULT_AGENTS: AgentConfig[] = [
     role: 'System Architect',
     provider: 'simulator',
     model: 'synapse-sim-1',
-    color: '#6366f1',
+    color: '#5b9cf6',
     system_prompt: 'Đề xuất kiến trúc rõ ràng, cân nhắc trade-off và khả năng mở rộng.',
   },
   {
@@ -25,7 +25,7 @@ const DEFAULT_AGENTS: AgentConfig[] = [
     role: 'Code & Security Reviewer',
     provider: 'simulator',
     model: 'synapse-sim-1',
-    color: '#f59e0b',
+    color: '#e5a04d',
     system_prompt: 'Phản biện edge-case, race condition, bảo mật và tính đơn giản.',
   },
   {
@@ -34,7 +34,7 @@ const DEFAULT_AGENTS: AgentConfig[] = [
     role: 'UI/UX Engineer',
     provider: 'simulator',
     model: 'synapse-sim-1',
-    color: '#10b981',
+    color: '#4cc38a',
     system_prompt: 'Thiết kế trải nghiệm người dùng, streaming UI và quản lý state.',
   },
 ];
@@ -46,7 +46,7 @@ export function NewSessionModal({ open, onClose }: NewSessionModalProps) {
   const [mode, setMode] = useState<OrchestrationMode>('mention_and_round_robin');
   const [maxTurns, setMaxTurns] = useState(8);
   const [initialPrompt, setInitialPrompt] = useState(
-    'Chúng ta cần thiết kế tính năng mới cho dự án. @architect hãy đề xuất phương án trước nhé.'
+    'Chúng ta cần thiết kế tính năng mới cho dự án. @architect đề xuất phương án trước.'
   );
   const [agents, setAgents] = useState<AgentConfig[]>(DEFAULT_AGENTS);
   const [submitting, setSubmitting] = useState(false);
@@ -68,7 +68,7 @@ export function NewSessionModal({ open, onClose }: NewSessionModalProps) {
         role: 'Specialist',
         provider: 'simulator',
         model: 'synapse-sim-1',
-        color: '#06b6d4',
+        color: '#a1a1a6',
       },
     ]);
   };
@@ -96,41 +96,46 @@ export function NewSessionModal({ open, onClose }: NewSessionModalProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
-      <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-zinc-800 bg-zinc-950 p-6 shadow-2xl">
-        <div className="mb-4 flex items-center justify-between">
-          <h3 className="text-base font-semibold text-zinc-100">Tạo phòng thảo luận .chat.md mới</h3>
-          <button type="button" onClick={onClose} className="rounded-lg p-1 text-zinc-400 hover:bg-zinc-800">
-            <X className="h-4 w-4" />
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4">
+      <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-[rgba(237,237,237,0.12)] bg-[#141415] p-6 shadow-2xl">
+        <div className="mb-5 flex items-center justify-between">
+          <h3 className="text-[15px] font-medium text-[#ededed]">Tạo phòng thảo luận mới</h3>
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-[#85858b] hover:bg-[#232325] hover:text-[#ededed]"
+            aria-label="Đóng"
+          >
+            <X className="h-4 w-4" strokeWidth={1.5} />
           </button>
         </div>
 
         <form onSubmit={(e) => void handleSubmit(e)} className="space-y-4">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
-              <label className="mb-1 block text-xs text-zinc-400">Tiêu đề phiên</label>
+              <label className="mb-1.5 block text-xs text-[#a1a1a6]">Tiêu đề phiên</label>
               <input
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 required
-                className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-xs text-zinc-100 focus:border-indigo-500 focus:outline-none"
+                className="h-9 w-full rounded-lg border border-[rgba(237,237,237,0.1)] bg-[#19191b] px-3 text-xs text-[#ededed] focus:border-[#5b9cf6] focus:outline-none"
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs text-zinc-400">Tên file (.chat.md)</label>
+              <label className="mb-1.5 block text-xs text-[#a1a1a6]">Tên file (.chat.md)</label>
               <input
                 value={fileName}
                 onChange={(e) => setFileName(e.target.value)}
                 required
-                className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 font-mono text-xs text-zinc-100 focus:border-indigo-500 focus:outline-none"
+                className="h-9 w-full rounded-lg border border-[rgba(237,237,237,0.1)] bg-[#19191b] px-3 font-mono text-xs text-[#ededed] focus:border-[#5b9cf6] focus:outline-none"
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs text-zinc-400">Chế độ điều phối</label>
+              <label className="mb-1.5 block text-xs text-[#a1a1a6]">Chế độ điều phối</label>
               <select
                 value={mode}
                 onChange={(e) => setMode(e.target.value as OrchestrationMode)}
-                className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-xs text-zinc-100 focus:border-indigo-500 focus:outline-none"
+                className="h-9 w-full rounded-lg border border-[rgba(237,237,237,0.1)] bg-[#19191b] px-3 text-xs text-[#ededed] focus:border-[#5b9cf6] focus:outline-none"
               >
                 <option value="mention_and_round_robin">@mention ưu tiên + Round-robin</option>
                 <option value="mention">Chỉ theo @mention</option>
@@ -139,27 +144,27 @@ export function NewSessionModal({ open, onClose }: NewSessionModalProps) {
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-xs text-zinc-400">Giới hạn lượt tự chạy (max_turns)</label>
+              <label className="mb-1.5 block text-xs text-[#a1a1a6]">Giới hạn lượt tự chạy</label>
               <input
                 type="number"
                 min={1}
                 max={50}
                 value={maxTurns}
                 onChange={(e) => setMaxTurns(Number(e.target.value) || 8)}
-                className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-xs text-zinc-100 focus:border-indigo-500 focus:outline-none"
+                className="h-9 w-full rounded-lg border border-[rgba(237,237,237,0.1)] bg-[#19191b] px-3 text-xs text-[#ededed] tabular-nums focus:border-[#5b9cf6] focus:outline-none"
               />
             </div>
           </div>
 
           <div>
             <div className="mb-2 flex items-center justify-between">
-              <span className="text-xs font-medium text-zinc-300">Danh sách AI Agents ({agents.length})</span>
+              <span className="text-xs font-medium text-[#a1a1a6]">Danh sách Agents ({agents.length})</span>
               <button
                 type="button"
                 onClick={addAgent}
-                className="inline-flex items-center gap-1 rounded-md border border-zinc-700 px-2 py-1 text-[11px] text-zinc-300 hover:bg-zinc-800"
+                className="inline-flex h-7 items-center gap-1 rounded-md border border-[rgba(237,237,237,0.1)] bg-[#232325] px-2.5 text-xs text-[#ededed] hover:bg-[#2a2a2d]"
               >
-                <Plus className="h-3 w-3" />
+                <Plus className="h-3.5 w-3.5" strokeWidth={1.5} />
                 Thêm Agent
               </button>
             </div>
@@ -167,24 +172,24 @@ export function NewSessionModal({ open, onClose }: NewSessionModalProps) {
               {agents.map((a, idx) => (
                 <div
                   key={idx}
-                  className="grid grid-cols-12 items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-900/70 p-2"
+                  className="grid grid-cols-12 items-center gap-2 rounded-lg border border-[rgba(237,237,237,0.08)] bg-[#19191b] p-2"
                 >
                   <input
                     value={a.id}
                     onChange={(e) => updateAgent(idx, { id: e.target.value })}
                     placeholder="id"
-                    className="col-span-2 rounded border border-zinc-800 bg-zinc-950 px-2 py-1 font-mono text-xs text-zinc-100"
+                    className="col-span-2 h-8 rounded border border-[rgba(237,237,237,0.08)] bg-[#141415] px-2 font-mono text-xs text-[#ededed]"
                   />
                   <input
                     value={a.name}
                     onChange={(e) => updateAgent(idx, { name: e.target.value })}
                     placeholder="Tên"
-                    className="col-span-3 rounded border border-zinc-800 bg-zinc-950 px-2 py-1 text-xs text-zinc-100"
+                    className="col-span-3 h-8 rounded border border-[rgba(237,237,237,0.08)] bg-[#141415] px-2 text-xs text-[#ededed]"
                   />
                   <select
                     value={a.provider}
                     onChange={(e) => updateAgent(idx, { provider: e.target.value as ProviderKind })}
-                    className="col-span-3 rounded border border-zinc-800 bg-zinc-950 px-2 py-1 text-xs text-zinc-100"
+                    className="col-span-3 h-8 rounded border border-[rgba(237,237,237,0.08)] bg-[#141415] px-2 text-xs text-[#ededed]"
                   >
                     <option value="simulator">Simulator (Demo)</option>
                     <option value="gemini">Google Gemini</option>
@@ -196,14 +201,15 @@ export function NewSessionModal({ open, onClose }: NewSessionModalProps) {
                     value={a.model}
                     onChange={(e) => updateAgent(idx, { model: e.target.value })}
                     placeholder="model"
-                    className="col-span-3 rounded border border-zinc-800 bg-zinc-950 px-2 py-1 font-mono text-xs text-zinc-100"
+                    className="col-span-3 h-8 rounded border border-[rgba(237,237,237,0.08)] bg-[#141415] px-2 font-mono text-xs text-[#ededed]"
                   />
                   <button
                     type="button"
                     onClick={() => setAgents((prev) => prev.filter((_, i) => i !== idx))}
-                    className="col-span-1 flex justify-center text-zinc-500 hover:text-rose-400"
+                    className="col-span-1 flex h-8 items-center justify-center text-[#85858b] hover:text-[#e5484d]"
+                    aria-label="Xóa agent"
                   >
-                    <Trash2 className="h-3.5 w-3.5" />
+                    <Trash2 className="h-3.5 w-3.5" strokeWidth={1.5} />
                   </button>
                 </div>
               ))}
@@ -211,31 +217,31 @@ export function NewSessionModal({ open, onClose }: NewSessionModalProps) {
           </div>
 
           <div>
-            <label className="mb-1 block text-xs text-zinc-400">Đề bài mở đầu (tùy chọn)</label>
+            <label className="mb-1.5 block text-xs text-[#a1a1a6]">Đề bài mở đầu (tùy chọn)</label>
             <textarea
               value={initialPrompt}
               onChange={(e) => setInitialPrompt(e.target.value)}
               rows={3}
-              className="w-full rounded-lg border border-zinc-800 bg-zinc-900 p-3 text-xs text-zinc-100 focus:border-indigo-500 focus:outline-none"
+              className="w-full rounded-lg border border-[rgba(237,237,237,0.1)] bg-[#19191b] p-3 text-xs text-[#ededed] focus:border-[#5b9cf6] focus:outline-none"
             />
           </div>
 
-          {error && <p className="text-xs text-rose-400">{error}</p>}
+          {error && <p className="text-xs text-[#e5484d]">{error}</p>}
 
           <div className="flex justify-end gap-2 pt-2">
             <button
               type="button"
               onClick={onClose}
-              className="rounded-lg border border-zinc-700 px-4 py-2 text-xs text-zinc-300 hover:bg-zinc-800"
+              className="h-9 rounded-lg border border-[rgba(237,237,237,0.1)] bg-[#232325] px-4 text-xs text-[#ededed] hover:bg-[#2a2a2d]"
             >
               Hủy
             </button>
             <button
               type="submit"
               disabled={submitting}
-              className="rounded-lg bg-indigo-600 px-4 py-2 text-xs font-medium text-white hover:bg-indigo-500 disabled:opacity-40"
+              className="h-9 rounded-lg bg-[#ededed] px-4 text-xs font-medium text-[#141415] hover:bg-white disabled:opacity-40"
             >
-              {submitting ? 'Đang tạo...' : 'Tạo .chat.md'}
+              {submitting ? 'Đang tạo' : 'Tạo phiên'}
             </button>
           </div>
         </form>

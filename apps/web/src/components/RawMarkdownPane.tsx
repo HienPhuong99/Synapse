@@ -41,17 +41,15 @@ export function RawMarkdownPane() {
   };
 
   return (
-    <div className="flex h-full w-1/2 flex-col border-l border-zinc-800 bg-zinc-950">
-      <div className="flex items-center justify-between border-b border-zinc-800 px-3 py-2">
+    <div className="flex h-full w-1/2 flex-col border-l border-[rgba(237,237,237,0.08)] bg-[#0f0f10]">
+      <div className="flex h-11 items-center justify-between border-b border-[rgba(237,237,237,0.08)] px-4">
         <div className="flex items-center gap-2">
-          <span className="font-mono text-xs font-medium text-zinc-200">{activeDoc.filePath}</span>
+          <span className="font-mono text-xs text-[#ededed]">{activeDoc.filePath}</span>
           {dirty ? (
-            <span className="rounded bg-amber-500/20 px-1.5 py-0.5 text-[10px] text-amber-300">
-              Chưa lưu
-            </span>
+            <span className="text-xs text-[#e5a04d]">Chưa lưu</span>
           ) : (
-            <span className="rounded bg-emerald-500/15 px-1.5 py-0.5 text-[10px] text-emerald-300">
-              Đã đồng bộ ({lastSyncSource === 'watcher' ? 'file watcher' : 'synced'})
+            <span className="text-xs text-[#4cc38a]">
+              {lastSyncSource === 'watcher' ? 'Đồng bộ từ ổ đĩa' : 'Đã đồng bộ'}
             </span>
           )}
         </div>
@@ -63,7 +61,7 @@ export function RawMarkdownPane() {
                 setRawDraft(activeDoc.raw);
                 setDirty(false);
               }}
-              className="rounded px-2 py-1 text-xs text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
+              className="h-7 rounded-md px-2 text-xs text-[#a1a1a6] hover:bg-[#19191b] hover:text-[#ededed]"
             >
               Hoàn tác
             </button>
@@ -72,15 +70,15 @@ export function RawMarkdownPane() {
             type="button"
             disabled={!dirty || saving}
             onClick={() => void handleSave()}
-            className="inline-flex items-center gap-1 rounded-md bg-indigo-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-indigo-500 disabled:opacity-40"
+            className="inline-flex h-7 items-center gap-1.5 rounded-md bg-[#ededed] px-2.5 text-xs font-medium text-[#141415] transition-colors duration-150 hover:bg-white disabled:opacity-40"
           >
-            <Save className="h-3.5 w-3.5" />
-            {saving ? 'Đang lưu...' : 'Lưu .chat.md'}
+            <Save className="h-3.5 w-3.5" strokeWidth={1.5} />
+            {saving ? 'Đang lưu' : 'Lưu file'}
           </button>
         </div>
       </div>
       {saveError && (
-        <div className="border-b border-rose-500/30 bg-rose-500/10 px-3 py-1.5 text-xs text-rose-300">
+        <div className="border-b border-[#e5484d]/30 bg-[#e5484d]/10 px-4 py-2 text-xs text-[#e5484d]">
           {saveError}
         </div>
       )}
@@ -91,7 +89,7 @@ export function RawMarkdownPane() {
           setDirty(true);
         }}
         spellCheck={false}
-        className="flex-1 resize-none bg-zinc-950 p-4 font-mono text-xs leading-relaxed text-zinc-200 focus:outline-none"
+        className="flex-1 resize-none bg-[#0f0f10] p-4 font-mono text-xs leading-relaxed text-[#ededed] focus:outline-none"
       />
     </div>
   );

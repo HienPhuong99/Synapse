@@ -25,7 +25,7 @@ export function App() {
   }, [loadWorkspace, handleWsEvent, setWsConnected]);
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-zinc-950 text-zinc-100">
+    <div className="flex h-screen w-screen overflow-hidden bg-[#141415] text-[#ededed]">
       <SidebarLeft
         onNewSession={() => setNewSessionOpen(true)}
         onSwitchWorkspace={() => setWorkspaceModalOpen(true)}

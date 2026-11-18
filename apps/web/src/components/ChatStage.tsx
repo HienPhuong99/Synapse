@@ -6,7 +6,7 @@ import {
   Send,
   Settings,
   SkipForward,
-  Sparkles,
+  TerminalSquare,
   X,
 } from 'lucide-react';
 import type { ChatMessage } from '@synapse/shared';
@@ -78,30 +78,30 @@ export function ChatStage({ onOpenSettings, onNewSession }: ChatStageProps) {
 
   if (!activeDoc) {
     return (
-      <main className="flex flex-1 flex-col items-center justify-center bg-zinc-950 px-6 text-center">
-        <div className="max-w-md space-y-4 rounded-2xl border border-zinc-800 bg-zinc-900/50 p-8">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-500/20 text-indigo-400">
-            <Sparkles className="h-6 w-6" />
+      <main className="flex flex-1 flex-col items-center justify-center bg-[#141415] px-6 text-center">
+        <div className="max-w-md space-y-4 rounded-xl border border-[rgba(237,237,237,0.08)] bg-[#19191b] p-8">
+          <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-lg border border-[rgba(237,237,237,0.1)] bg-[#232325] text-[#a1a1a6]">
+            <TerminalSquare className="h-5 w-5" strokeWidth={1.5} />
           </div>
-          <h2 className="text-lg font-semibold text-zinc-100">Chào mừng đến với Synapse</h2>
-          <p className="text-sm text-zinc-400">
-            Chọn một file <code>.chat.md</code> bên trái để theo dõi các AI Agent trao đổi về dự án, hoặc tạo một
-            phòng thảo luận mới.
+          <h2 className="text-base font-medium text-[#ededed]">Chưa chọn phiên thảo luận</h2>
+          <p className="text-[13px] leading-relaxed text-[#a1a1a6]">
+            Chọn file <code>chat.md</code> hoặc <code>.chat.md</code> ở cột trái để theo dõi luồng trao đổi, hoặc
+            tạo phòng thảo luận mới.
           </p>
-          <div className="flex justify-center gap-3 pt-2">
+          <div className="flex justify-center gap-2 pt-2">
             <button
               type="button"
               onClick={onNewSession}
-              className="rounded-lg bg-indigo-600 px-4 py-2 text-xs font-medium text-white hover:bg-indigo-500"
+              className="h-9 rounded-lg bg-[#ededed] px-4 text-xs font-medium text-[#141415] transition-colors duration-150 hover:bg-white active:scale-[0.98]"
             >
-              Tạo phòng thảo luận
+              Tạo phòng mới
             </button>
             <button
               type="button"
               onClick={onOpenSettings}
-              className="rounded-lg border border-zinc-700 px-4 py-2 text-xs font-medium text-zinc-200 hover:bg-zinc-800"
+              className="h-9 rounded-lg border border-[rgba(237,237,237,0.1)] bg-[#232325] px-4 text-xs font-medium text-[#ededed] transition-colors duration-150 hover:bg-[#2a2a2d]"
             >
-              Cấu hình API / Ollama
+              Cài đặt API / Ollama
             </button>
           </div>
         </div>
@@ -130,23 +130,23 @@ export function ChatStage({ onOpenSettings, onNewSession }: ChatStageProps) {
     : null;
 
   return (
-    <main className="flex min-w-0 flex-1 flex-col bg-zinc-950">
-      {/* Top Toolbar */}
-      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-800/90 bg-zinc-950/95 px-4 py-2.5">
+    <main className="flex min-w-0 flex-1 flex-col bg-[#141415]">
+      {/* Top Bar */}
+      <header className="flex min-h-14 flex-wrap items-center justify-between gap-3 border-b border-[rgba(237,237,237,0.08)] bg-[#141415] px-5 py-2.5">
         <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <h2 className="truncate text-sm font-semibold text-zinc-100">{activeDoc.meta.title}</h2>
-            <span className="rounded bg-zinc-800 px-1.5 py-0.5 font-mono text-[10px] text-zinc-300">
+          <div className="flex items-center gap-2.5">
+            <h2 className="truncate text-[14px] font-medium text-[#ededed]">{activeDoc.meta.title}</h2>
+            <span className="rounded bg-[#232325] px-1.5 py-0.5 font-mono text-xs text-[#a1a1a6]">
               {activeDoc.meta.mode}
             </span>
             {orchestratorRunning && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-medium text-emerald-300">
-                <span className="h-1.5 w-1.5 animate-ping rounded-full bg-emerald-400" />
-                Auto turn {turnCount}/{activeDoc.meta.max_turns}
+              <span className="inline-flex items-center gap-1.5 font-mono text-xs text-[#4cc38a] tabular-nums">
+                <span className="h-1.5 w-1.5 rounded-full bg-[#4cc38a]" />
+                {turnCount}/{activeDoc.meta.max_turns}
               </span>
             )}
           </div>
-          <p className="truncate font-mono text-[11px] text-zinc-500">{activeDoc.filePath}</p>
+          <p className="mt-0.5 truncate font-mono text-xs text-[#85858b]">{activeDoc.filePath}</p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
@@ -154,9 +154,9 @@ export function ChatStage({ onOpenSettings, onNewSession }: ChatStageProps) {
             <button
               type="button"
               onClick={() => void api.controlSession(activeDoc.filePath, 'pause')}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-rose-600/90 px-3 py-1.5 text-xs font-medium text-white hover:bg-rose-500"
+              className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-[#e5484d] px-3 text-xs font-medium text-white transition-colors duration-150 hover:bg-[#d63f44] active:scale-[0.98]"
             >
-              <Pause className="h-3.5 w-3.5" />
+              <Pause className="h-3.5 w-3.5" strokeWidth={1.75} />
               Tạm dừng
             </button>
           ) : (
@@ -165,20 +165,20 @@ export function ChatStage({ onOpenSettings, onNewSession }: ChatStageProps) {
                 type="button"
                 onClick={() => void api.controlSession(activeDoc.filePath, 'start')}
                 disabled={activeDoc.meta.agents.length === 0}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-500 disabled:opacity-40"
+                className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-[#ededed] px-3 text-xs font-medium text-[#141415] transition-colors duration-150 hover:bg-white active:scale-[0.98] disabled:opacity-40"
                 title="Để các AI Agent tự trao đổi liên tiếp tối đa max_turns lượt"
               >
-                <Play className="h-3.5 w-3.5" />
+                <Play className="h-3.5 w-3.5" strokeWidth={1.75} />
                 Chạy tự động
               </button>
               <button
                 type="button"
                 onClick={() => void api.controlSession(activeDoc.filePath, 'step')}
                 disabled={activeDoc.meta.agents.length === 0}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-xs font-medium text-zinc-200 hover:bg-zinc-800 disabled:opacity-40"
-                title="Chạy tiếp đúng 1 lượt AI"
+                className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-[rgba(237,237,237,0.1)] bg-[#232325] px-3 text-xs font-medium text-[#ededed] transition-colors duration-150 hover:bg-[#2a2a2d] disabled:opacity-40"
+                title="Chạy tiếp 1 lượt AI"
               >
-                <SkipForward className="h-3.5 w-3.5" />
+                <SkipForward className="h-3.5 w-3.5 text-[#a1a1a6]" strokeWidth={1.5} />
                 1 lượt
               </button>
             </>
@@ -187,24 +187,25 @@ export function ChatStage({ onOpenSettings, onNewSession }: ChatStageProps) {
           <button
             type="button"
             onClick={() => setSplitView(!splitView)}
-            className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition ${
+            className={`inline-flex h-8 items-center gap-1.5 rounded-lg border px-3 text-xs font-medium transition-colors duration-150 ${
               splitView
-                ? 'border-indigo-500/60 bg-indigo-500/15 text-indigo-300'
-                : 'border-zinc-700 bg-zinc-900 text-zinc-300 hover:bg-zinc-800'
+                ? 'border-[rgba(237,237,237,0.2)] bg-[#232325] text-[#ededed]'
+                : 'border-[rgba(237,237,237,0.08)] bg-[#19191b] text-[#a1a1a6] hover:bg-[#232325] hover:text-[#ededed]'
             }`}
-            title="Xem & sửa song song file raw .chat.md"
+            title="Xem và sửa song song file raw Markdown"
           >
-            <Columns2 className="h-3.5 w-3.5" />
+            <Columns2 className="h-3.5 w-3.5" strokeWidth={1.5} />
             Split .chat.md
           </button>
 
           <button
             type="button"
             onClick={onOpenSettings}
-            className="rounded-lg border border-zinc-700 bg-zinc-900 p-1.5 text-zinc-300 hover:bg-zinc-800"
+            className="flex h-8 w-8 items-center justify-center rounded-lg border border-[rgba(237,237,237,0.08)] bg-[#19191b] text-[#a1a1a6] transition-colors duration-150 hover:bg-[#232325] hover:text-[#ededed]"
             title="Cài đặt API Keys & Ollama"
+            aria-label="Cài đặt"
           >
-            <Settings className="h-4 w-4" />
+            <Settings className="h-4 w-4" strokeWidth={1.5} />
           </button>
         </div>
       </header>
@@ -212,15 +213,20 @@ export function ChatStage({ onOpenSettings, onNewSession }: ChatStageProps) {
       {/* Banners */}
       {(errorBanner || orchestratorNotice) && (
         <div
-          className={`flex items-center justify-between border-b px-4 py-2 text-xs ${
+          className={`flex items-center justify-between border-b px-5 py-2 text-xs ${
             errorBanner
-              ? 'border-rose-500/30 bg-rose-500/10 text-rose-200'
-              : 'border-indigo-500/30 bg-indigo-500/10 text-indigo-200'
+              ? 'border-[#e5484d]/30 bg-[#e5484d]/10 text-[#f3a8aa]'
+              : 'border-[rgba(237,237,237,0.08)] bg-[#19191b] text-[#a1a1a6]'
           }`}
         >
           <span>{errorBanner || orchestratorNotice}</span>
-          <button type="button" onClick={clearError} className="rounded p-0.5 hover:bg-white/10">
-            <X className="h-3.5 w-3.5" />
+          <button
+            type="button"
+            onClick={clearError}
+            className="rounded p-1 hover:bg-[rgba(237,237,237,0.08)]"
+            aria-label="Đóng thông báo"
+          >
+            <X className="h-3.5 w-3.5" strokeWidth={1.5} />
           </button>
         </div>
       )}
@@ -228,10 +234,10 @@ export function ChatStage({ onOpenSettings, onNewSession }: ChatStageProps) {
       {/* Body: Chat Feed + Optional Raw Markdown Split View */}
       <div className="flex min-h-0 flex-1">
         <div className={`flex min-w-0 flex-col ${splitView ? 'w-1/2' : 'w-full'}`}>
-          <div className="flex-1 space-y-3 overflow-y-auto p-4">
+          <div className="flex-1 space-y-3 overflow-y-auto p-5">
             {activeDoc.messages.length === 0 && !streamingCardMsg && (
-              <div className="rounded-xl border border-dashed border-zinc-800 p-8 text-center text-xs text-zinc-500">
-                Phòng thảo luận chưa có tin nhắn nào. Hãy gửi đề bài bên dưới hoặc nhấn <b>Chạy tự động</b>.
+              <div className="rounded-xl border border-dashed border-[rgba(237,237,237,0.1)] p-8 text-center text-xs text-[#85858b]">
+                Phòng thảo luận chưa có tin nhắn. Nhập đề bài bên dưới hoặc nhấn Chạy tự động
               </div>
             )}
 
@@ -257,30 +263,38 @@ export function ChatStage({ onOpenSettings, onNewSession }: ChatStageProps) {
           </div>
 
           {/* Composer */}
-          <form onSubmit={(e) => void handleSend(e)} className="border-t border-zinc-800/90 bg-zinc-950 p-3">
+          <form
+            onSubmit={(e) => void handleSend(e)}
+            className="border-t border-[rgba(237,237,237,0.08)] bg-[#141415] px-5 py-3"
+          >
             <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
               <div className="flex flex-wrap items-center gap-1.5">
-                <span className="text-[11px] text-zinc-500">Tag nhanh:</span>
+                <span className="text-xs text-[#85858b]">Gọi nhanh</span>
                 {activeDoc.meta.agents.map((a) => (
                   <button
                     key={a.id}
                     type="button"
                     onClick={() => appendComposerToken(`@${a.id}`)}
-                    className="rounded-md border border-zinc-800 bg-zinc-900 px-2 py-0.5 font-mono text-[11px] text-zinc-300 hover:border-indigo-500/50 hover:text-indigo-300"
+                    className="rounded-md border border-[rgba(237,237,237,0.08)] bg-[#19191b] px-2 py-0.5 font-mono text-xs text-[#a1a1a6] transition-colors duration-150 hover:border-[rgba(237,237,237,0.18)] hover:text-[#ededed]"
                   >
                     @{a.id}
                   </button>
                 ))}
               </div>
-              <label className="flex cursor-pointer items-center gap-1.5 text-[11px] text-zinc-400">
-                <input
-                  type="checkbox"
-                  checked={autoRunOnSend}
-                  onChange={(e) => setAutoRunOnSend(e.target.checked)}
-                  className="rounded border-zinc-700 bg-zinc-900 text-indigo-500"
-                />
-                Tự chạy AI sau khi gửi
-              </label>
+              <div className="flex items-center gap-3">
+                <label className="flex cursor-pointer items-center gap-2 text-xs text-[#a1a1a6]">
+                  <input
+                    type="checkbox"
+                    checked={autoRunOnSend}
+                    onChange={(e) => setAutoRunOnSend(e.target.checked)}
+                    className="h-3.5 w-3.5 rounded border-[rgba(237,237,237,0.2)] bg-[#19191b] accent-[#ededed]"
+                  />
+                  Tự chạy AI sau khi gửi
+                </label>
+                <span className="hidden items-center gap-1 text-xs text-[#85858b] sm:inline-flex">
+                  <kbd className="kbd-cap">Ctrl+Enter</kbd>
+                </span>
+              </div>
             </div>
 
             <div className="flex gap-2">
@@ -294,15 +308,15 @@ export function ChatStage({ onOpenSettings, onNewSession }: ChatStageProps) {
                   }
                 }}
                 rows={2}
-                placeholder="Nhập ý kiến can thiệp, @agent để chỉ định hoặc @file:path để đính kèm code (Ctrl+Enter để gửi)..."
-                className="flex-1 resize-none rounded-xl border border-zinc-800 bg-zinc-900/90 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-500 focus:border-indigo-500 focus:outline-none"
+                placeholder="Nhắn tới phòng (@agent hoặc @file:path)"
+                className="flex-1 resize-none rounded-lg border border-[rgba(237,237,237,0.1)] bg-[#19191b] px-3 py-2 text-[14px] text-[#ededed] placeholder:text-[#85858b] focus:border-[#5b9cf6] focus:outline-none"
               />
               <button
                 type="submit"
                 disabled={!composerText.trim() || sending}
-                className="inline-flex items-center gap-1.5 self-end rounded-xl bg-indigo-600 px-4 py-2.5 text-xs font-medium text-white hover:bg-indigo-500 disabled:opacity-40"
+                className="inline-flex h-9 items-center gap-1.5 self-end rounded-lg bg-[#ededed] px-4 text-xs font-medium text-[#141415] transition-colors duration-150 hover:bg-white active:scale-[0.98] disabled:opacity-40"
               >
-                <Send className="h-3.5 w-3.5" />
+                <Send className="h-3.5 w-3.5" strokeWidth={1.75} />
                 Gửi
               </button>
             </div>

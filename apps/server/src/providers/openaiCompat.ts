@@ -1,4 +1,5 @@
 import type { ChatDocument } from '@synapse/shared';
+import { readSse } from './sse.js';
 import type { ProviderPromptContext, ProviderStreamCallbacks, ProviderStreamResult } from './types.js';
 
 export function buildSystemPrompt(ctx: ProviderPromptContext): string {
@@ -61,18 +62,23 @@ export async function runOpenAICompatProvider(
     headers.Authorization = `Bearer ${apiKey}`;
   }
 
+  const payload: Record<string, unknown> = {
+    model: agent.model,
+    stream: true,
+    messages: [
+      { role: 'system', content: buildSystemPrompt(ctx) },
+      { role: 'user', content: buildConversationTranscript(ctx.document, agent.id) },
+    ],
+  };
+  if (mode === 'openai') {
+    payload.stream_options = { include_usage: true };
+  }
+
   const res = await fetch(url, {
     method: 'POST',
     headers,
     signal,
-    body: JSON.stringify({
-      model: agent.model,
-      stream: true,
-      messages: [
-        { role: 'system', content: buildSystemPrompt(ctx) },
-        { role: 'user', content: buildConversationTranscript(ctx.document, agent.id) },
-      ],
-    }),
+    body: JSON.stringify(payload),
   });
 
   if (!res.ok || !res.body) {
@@ -80,51 +86,34 @@ export async function runOpenAICompatProvider(
     throw new Error(`${mode.toUpperCase()} error (${res.status}): ${errText}`);
   }
 
-  const reader = res.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = '';
   let content = '';
   let thinking = '';
   let tokensIn: number | undefined;
   let tokensOut: number | undefined;
 
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
-
-    const lines = buffer.split('\n');
-    buffer = lines.pop() ?? '';
-
-    for (const rawLine of lines) {
-      const line = rawLine.trim();
-      if (!line.startsWith('data:')) continue;
-      const data = line.slice(5).trim();
-      if (data === '[DONE]') continue;
-
-      try {
-        const parsed = JSON.parse(data) as {
-          choices?: { delta?: { content?: string; reasoning_content?: string } }[];
-          usage?: { prompt_tokens?: number; completion_tokens?: number };
-        };
-        const delta = parsed.choices?.[0]?.delta;
-        if (delta?.reasoning_content) {
-          thinking += delta.reasoning_content;
-          callbacks.onThinkingDelta(delta.reasoning_content);
-        }
-        if (delta?.content) {
-          content += delta.content;
-          callbacks.onContentDelta(delta.content);
-        }
-        if (parsed.usage) {
-          tokensIn = parsed.usage.prompt_tokens;
-          tokensOut = parsed.usage.completion_tokens;
-        }
-      } catch {
-        // Ignore partial JSON lines
+  await readSse(res, (data) => {
+    try {
+      const parsed = JSON.parse(data) as {
+        choices?: { delta?: { content?: string; reasoning_content?: string } }[];
+        usage?: { prompt_tokens?: number; completion_tokens?: number };
+      };
+      const delta = parsed.choices?.[0]?.delta;
+      if (delta?.reasoning_content) {
+        thinking += delta.reasoning_content;
+        callbacks.onThinkingDelta(delta.reasoning_content);
       }
+      if (delta?.content) {
+        content += delta.content;
+        callbacks.onContentDelta(delta.content);
+      }
+      if (parsed.usage) {
+        tokensIn = parsed.usage.prompt_tokens;
+        tokensOut = parsed.usage.completion_tokens;
+      }
+    } catch {
+      // Ignore partial JSON lines
     }
-  }
+  });
 
   return { thinking, content, tokensIn, tokensOut };
 }

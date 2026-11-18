@@ -34,6 +34,8 @@ Tạo 3 file sau trong thư mục dự án của bạn:
   `### \`[Tên_AI -> AI_Nhận | YYYY-MM-DD HH:mm +07]\` — Status: \`OPEN\` / \`FIXED\` / \`AGREED\` / \`DONE\``
 - **Chống giẫm chân khi sửa code:** Hai AI dùng chung một thư mục làm việc. Phải chia rõ ai sửa file nào trong `chat.md` trước khi code; chỉ `git add` đúng các file mình sửa.
 - **Báo lỗi có dẫn chứng:** Khi review phải ghi rõ `đường/dẫn/file:dòng` và kết quả chạy lệnh kiểm tra (`build`, `test`, `lint`).
+- **Tối ưu hạn mức (khi 1 AI có limit nhiều hơn):** AI hạn mức cao (Gemini) nhận triển khai phần lớn, viết/chạy full test và tóm tắt `file:dòng` trọng tâm (`READY FOR REVIEW`); AI hạn mức ít (Claude) chỉ review `git diff` theo gói 1 lượt — lỗi nhỏ ≤ 20 dòng thì sửa tại chỗ rồi `DONE`, lỗi lớn thì trả về để AI kia sửa. Không đặt cron poll phía AI ít hạn mức, và nén thread cũ vào mục 1 sau mỗi mốc `DONE`.
+- **Tự commit & push khi xong task:** Khi task đã hoàn thành, pass build/test và đã ghi vào `chat.md`, tự `git add` đúng file của mình, `git commit` và `git push` lên remote.
 - **Hẹn giờ (`ETA`):** Nếu có lượt chờ AI kia phản hồi, ghi rõ `ETA` dự kiến để hai bên biết thời điểm kiểm tra lại.
 ```
 

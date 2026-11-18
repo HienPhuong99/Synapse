@@ -28,7 +28,7 @@ const KNOWN_THREAD_AGENTS: Record<string, Partial<AgentConfig>> = {
     name: 'Claude',
     role: 'Anthropic Claude',
     provider: 'anthropic',
-    model: 'claude-sonnet-4-5',
+    model: 'claude-opus-5-5',
     color: '#f59e0b',
   },
   gemini: {
@@ -36,7 +36,7 @@ const KNOWN_THREAD_AGENTS: Record<string, Partial<AgentConfig>> = {
     name: 'Gemini',
     role: 'Google Gemini',
     provider: 'gemini',
-    model: 'gemini-2.5-pro',
+    model: 'gemini-3.8-flash',
     color: '#6366f1',
   },
 };
@@ -325,21 +325,35 @@ function inferAgentsFromMessages(messages: ChatMessage[]): AgentConfig[] {
   return Array.from(seen.values());
 }
 
-export function parseChatMd(raw: string, filePath = ''): ChatDocument {
+interface ScannedBlock {
+  heading: RawHeadingMatch;
+  lines: string[];
+  /** Offsets into the LF-normalized raw text. */
+  start: number;
+  headingEnd: number;
+  end: number;
+}
+
+function scanChatMd(raw: string) {
   const { hasFrontmatter, meta, body } = parseFrontmatter(raw);
+  const text = raw.replace(/\r\n/g, '\n');
   const lines = body.split('\n');
 
-  // Detect ZeroPort-style H3 thread chat.md when no YAML frontmatter is present
+  // No frontmatter and no Synapse H2 messages → ZeroPort-style H3 thread chat.md
+  // (also for an empty template, so the first appended message uses the thread format).
   const hasH2Msg = lines.some((l) => Boolean(parseMessageHeading(l, 1)));
-  const hasH3ThreadMsg = !hasFrontmatter && !hasH2Msg && lines.some((l) => Boolean(parseThreadH3Heading(l, 1)));
+  const hasH3ThreadMsg = !hasFrontmatter && !hasH2Msg;
 
   const preambleLines: string[] = [];
-  const blocks: { heading: RawHeadingMatch; lines: string[] }[] = [];
+  const blocks: ScannedBlock[] = [];
 
-  let currentBlock: { heading: RawHeadingMatch; lines: string[] } | null = null;
+  let currentBlock: ScannedBlock | null = null;
   let activeFence: { char: string; len: number } | null = null;
+  let offset = text.length - body.length;
 
   for (const line of lines) {
+    const lineStart = offset;
+    offset += line.length + 1;
     const fenceMatch = line.match(/^\s*(`{3,}|~{3,})/);
     if (fenceMatch) {
       const marker = fenceMatch[1];
@@ -353,19 +367,20 @@ export function parseChatMd(raw: string, filePath = ''): ChatDocument {
     }
 
     if (!activeFence) {
-      const heading = hasH3ThreadMsg
+      const heading: RawHeadingMatch | null = hasH3ThreadMsg
         ? line.startsWith('### ')
-          ? parseThreadH3Heading(line, blocks.length + 1)
+          ? parseThreadH3Heading(line, blocks.length + (currentBlock ? 2 : 1))
           : null
         : line.startsWith('## ')
-          ? parseMessageHeading(line, blocks.length + 1)
+          ? parseMessageHeading(line, blocks.length + (currentBlock ? 2 : 1))
           : null;
 
       if (heading) {
         if (currentBlock) {
+          currentBlock.end = lineStart;
           blocks.push(currentBlock);
         }
-        currentBlock = { heading, lines: [] };
+        currentBlock = { heading, lines: [], start: lineStart, headingEnd: lineStart + line.length, end: text.length };
         continue;
       }
     }
@@ -382,7 +397,11 @@ export function parseChatMd(raw: string, filePath = ''): ChatDocument {
   }
 
   const messages = blocks.map((b) => parseMessageBody(b.lines, b.heading));
-  const preamble = preambleLines.join('\n').trim();
+  return { text, hasFrontmatter, meta, preamble: preambleLines.join('\n').trim(), hasH3ThreadMsg, blocks, messages };
+}
+
+export function parseChatMd(raw: string, filePath = ''): ChatDocument {
+  const { meta, preamble, hasH3ThreadMsg, messages } = scanChatMd(raw);
 
   if (hasH3ThreadMsg) {
     const h1Match = preamble.match(/^#\s+(.+)$/m);
@@ -421,18 +440,97 @@ function formatAuthorLabel(id: string): string {
 }
 
 function formatThreadTimestamp(ts: string): string {
-  if (!ts) {
-    const now = new Date();
-    const pad = (n: number) => String(n).padStart(2, '0');
-    return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())} +07`;
-  }
   if (/^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}/.test(ts)) {
     return ts;
   }
-  const d = new Date(ts);
+  const d = ts ? new Date(ts) : new Date();
   if (Number.isNaN(d.getTime())) return ts;
   const pad = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())} +07`;
+  const off = -d.getTimezoneOffset();
+  const tz = `${off >= 0 ? '+' : '-'}${pad(Math.floor(Math.abs(off) / 60))}${Math.abs(off) % 60 ? `:${pad(Math.abs(off) % 60)}` : ''}`;
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())} ${tz}`;
+}
+
+function serializeMessage(msg: ChatMessage, thread: boolean): { heading: string; body: string } {
+  let heading: string;
+  const bodyParts: string[] = [];
+  if (thread) {
+    const authorLabel = formatAuthorLabel(msg.author);
+    // Only an explicit target goes into the heading; never guess it from body mentions.
+    const actorPart = msg.meta?.target ? `${authorLabel} -> ${formatAuthorLabel(msg.meta.target)}` : authorLabel;
+    const suffixPart = msg.meta?.headingSuffix ? ` — ${msg.meta.headingSuffix}` : '';
+    heading = `### \`[${actorPart} | ${formatThreadTimestamp(msg.timestamp)}]\`${suffixPart}`;
+  } else {
+    heading = `## [${msg.id}] @${msg.author}${msg.timestamp ? ` · ${msg.timestamp}` : ''}`;
+    if (msg.meta && Object.keys(msg.meta).length > 0) {
+      bodyParts.push(`<!-- synapse: ${JSON.stringify(msg.meta)} -->`);
+    }
+  }
+  if (msg.thinking && msg.thinking.trim()) {
+    bodyParts.push(
+      `<details data-synapse="thinking">\n<summary>Quá trình suy nghĩ</summary>\n\n${msg.thinking.trim()}\n\n</details>`
+    );
+  }
+  if (msg.content && msg.content.trim()) {
+    bodyParts.push(msg.content.trim());
+  }
+  return { heading, body: bodyParts.join('\n\n') };
+}
+
+function serializeBlock(msg: ChatMessage, thread: boolean): string {
+  const { heading, body } = serializeMessage(msg, thread);
+  return body ? `${heading}\n\n${body}` : heading;
+}
+
+// ---- Raw patch helpers: change only the bytes that must change, so text written by
+// other agents/editors (headings, spacing, unknown frontmatter keys, CRLF) survives.
+
+function withEol(raw: string, edit: (text: string) => string): string {
+  const out = edit(raw.replace(/\r\n/g, '\n'));
+  return raw.includes('\r\n') ? out.replace(/\n/g, '\r\n') : out;
+}
+
+function findBlockIndex(scan: ReturnType<typeof scanChatMd>, messageId: string): number {
+  const idx = scan.messages.findIndex((m) => m.id === messageId);
+  if (idx === -1) throw new Error(`Không tìm thấy tin nhắn ${messageId}`);
+  return idx;
+}
+
+export function appendMessageRaw(raw: string, msg: ChatMessage): string {
+  const scan = scanChatMd(raw);
+  return withEol(raw, (text) => {
+    const head = text.trimEnd();
+    return `${head}${head ? '\n\n' : ''}${serializeBlock(msg, scan.hasH3ThreadMsg)}\n`;
+  });
+}
+
+/** Replaces one message's body; its original heading line is kept verbatim. */
+export function replaceMessageRaw(raw: string, messageId: string, msg: ChatMessage): string {
+  const scan = scanChatMd(raw);
+  const block = scan.blocks[findBlockIndex(scan, messageId)];
+  return withEol(raw, (text) => {
+    const trailing = text.slice(block.start, block.end).match(/\s*$/)?.[0] ?? '';
+    const { body } = serializeMessage(msg, scan.hasH3ThreadMsg);
+    return `${text.slice(0, block.headingEnd)}${body ? `\n\n${body}` : ''}${trailing}${text.slice(block.end)}`;
+  });
+}
+
+/** Drops everything from the given message (keep=false) or after it (keep=true). */
+export function truncateMessagesRaw(raw: string, messageId: string, keep: boolean): string {
+  const scan = scanChatMd(raw);
+  const idx = findBlockIndex(scan, messageId);
+  const cut = keep ? (scan.blocks[idx + 1]?.start ?? scan.text.length) : scan.blocks[idx].start;
+  return withEol(raw, (text) => `${text.slice(0, cut).trimEnd()}\n`);
+}
+
+/** Sets `status:` in YAML frontmatter; files without frontmatter are returned unchanged. */
+export function setStatusRaw(raw: string, status: ChatSessionMeta['status']): string {
+  return withEol(raw, (text) => {
+    const m = text.match(/^---\n([\s\S]*?)\n---/);
+    if (!m) return text;
+    const fm = /^status:.*$/m.test(m[1]) ? m[1].replace(/^status:.*$/m, `status: ${status}`) : `${m[1]}\nstatus: ${status}`;
+    return `---\n${fm}\n---${text.slice(m[0].length)}`;
+  });
 }
 
 export function serializeChatMd(doc: ChatDocument): string {
@@ -441,27 +539,9 @@ export function serializeChatMd(doc: ChatDocument): string {
     if (doc.preamble && doc.preamble.trim()) {
       parts.push(doc.preamble.trim());
     }
-
     for (const msg of doc.messages) {
-      const authorLabel = formatAuthorLabel(msg.author);
-      const targetId = msg.meta?.target || msg.mentions[0];
-      const actorPart = targetId ? `${authorLabel} -> ${formatAuthorLabel(targetId)}` : authorLabel;
-      const tsPart = formatThreadTimestamp(msg.timestamp);
-      const suffixPart = msg.meta?.headingSuffix ? ` — ${msg.meta.headingSuffix}` : '';
-      const heading = `### \`[${actorPart} | ${tsPart}]\`${suffixPart}`;
-
-      const msgLines: string[] = [heading];
-      if (msg.thinking && msg.thinking.trim()) {
-        msgLines.push(
-          `<details data-synapse="thinking">\n<summary>Quá trình suy nghĩ</summary>\n\n${msg.thinking.trim()}\n\n</details>`
-        );
-      }
-      if (msg.content && msg.content.trim()) {
-        msgLines.push(msg.content.trim());
-      }
-      parts.push(msgLines.join('\n\n'));
+      parts.push(serializeBlock(msg, true));
     }
-
     return parts.join('\n\n') + '\n';
   }
 
@@ -501,24 +581,7 @@ export function serializeChatMd(doc: ChatDocument): string {
   }
 
   for (const msg of doc.messages) {
-    const tsPart = msg.timestamp ? ` · ${msg.timestamp}` : '';
-    const msgLines: string[] = [`## [${msg.id}] @${msg.author}${tsPart}`];
-
-    if (msg.meta && Object.keys(msg.meta).length > 0) {
-      msgLines.push(`<!-- synapse: ${JSON.stringify(msg.meta)} -->`);
-    }
-
-    if (msg.thinking && msg.thinking.trim()) {
-      msgLines.push(
-        `<details data-synapse="thinking">\n<summary>Quá trình suy nghĩ</summary>\n\n${msg.thinking.trim()}\n\n</details>`
-      );
-    }
-
-    if (msg.content && msg.content.trim()) {
-      msgLines.push(msg.content.trim());
-    }
-
-    parts.push(msgLines.join('\n\n'));
+    parts.push(serializeBlock(msg, false));
   }
 
   return parts.join('\n\n') + '\n';

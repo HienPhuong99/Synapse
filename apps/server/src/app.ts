@@ -1,7 +1,6 @@
 import fs from 'node:fs';
 import fsPromises from 'node:fs/promises';
 import path from 'node:path';
-import cors from '@fastify/cors';
 import fastifyStatic from '@fastify/static';
 import websocket from '@fastify/websocket';
 import Fastify, { type FastifyInstance } from 'fastify';
@@ -30,7 +29,15 @@ export async function createSynapseServer(options: CreateServerOptions): Promise
   orchestrator: ConversationOrchestrator;
 }> {
   const app = Fastify({ logger: false });
-  await app.register(cors, { origin: true });
+  // No CORS: the UI is same-origin (built) or proxied by Vite (dev). Reject anything a
+  // foreign web page or a DNS-rebinding host could send, including the /ws upgrade.
+  // ponytail: loopback hostname check only, any local port passes; add a session token if other local apps are untrusted.
+  app.addHook('onRequest', async (req, reply) => {
+    const origin = req.headers.origin;
+    if (!isLoopbackHost(req.headers.host) || (origin && !isLoopbackHost(hostOf(origin)))) {
+      return reply.code(403).send({ error: 'Forbidden origin' });
+    }
+  });
   await app.register(websocket);
 
   const clients = new Set<WebSocket>();
@@ -239,9 +246,7 @@ export async function createSynapseServer(options: CreateServerOptions): Promise
       return { ok: true, status: orchestrator.getStatus(relPath) };
     }
     if (action === 'step') {
-      void orchestrator.runStep(filePathFrom(relPath), agentId).catch((err) => {
-        console.error('Step error:', err);
-      });
+      orchestrator.runInBackground(relPath, orchestrator.runStep(relPath, agentId));
       return { ok: true, status: orchestrator.getStatus(relPath) };
     }
     if (action === 'start') {
@@ -293,6 +298,16 @@ export async function createSynapseServer(options: CreateServerOptions): Promise
   };
 }
 
-function filePathFrom(p: string): string {
-  return p;
+function hostOf(url: string): string | undefined {
+  try {
+    return new URL(url).host;
+  } catch {
+    return undefined;
+  }
+}
+
+export function isLoopbackHost(host: string | undefined): boolean {
+  if (!host) return false;
+  const name = host.replace(/:\d+$/, '').toLowerCase();
+  return name === '127.0.0.1' || name === 'localhost' || name === '[::1]';
 }

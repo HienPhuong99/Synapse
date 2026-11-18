@@ -2,10 +2,14 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import {
+  appendMessageRaw,
   extractFileRefs,
   extractMentions,
   nextMessageId,
+  replaceMessageRaw,
   serializeChatMd,
+  setStatusRaw,
+  truncateMessagesRaw,
   type AgentConfig,
   type ChatDocument,
   type ChatMessage,
@@ -20,7 +24,11 @@ interface ActiveRun {
   controller: AbortController;
   turnCount: number;
   looping: boolean;
+  /** Settles (never rejects) once the run has fully cleaned up. */
+  done?: Promise<void>;
 }
+
+const noop = () => undefined;
 
 export class ConversationOrchestrator {
   private activeRuns = new Map<string, ActiveRun>();
@@ -81,6 +89,15 @@ export class ConversationOrchestrator {
     return this.getMaskedSettings();
   }
 
+  /** Fire-and-forget a run without letting a rejection kill the process; report it to the UI instead. */
+  runInBackground(filePath: string, task: Promise<unknown>): void {
+    task.catch((err) => {
+      const reason = err instanceof Error ? err.message : String(err);
+      console.error(`[${filePath}]`, reason);
+      this.emitEvent({ type: 'orchestrator:status', filePath, ...this.getStatus(filePath), reason });
+    });
+  }
+
   isRunning(filePath: string): boolean {
     return this.activeRuns.has(filePath);
   }
@@ -132,15 +149,16 @@ export class ConversationOrchestrator {
     }
 
     const controller = new AbortController();
-    this.activeRuns.set(filePath, { controller, turnCount: 1, looping: false });
+    const run: ActiveRun = { controller, turnCount: 1, looping: false };
+    this.activeRuns.set(filePath, run);
     this.emitEvent({ type: 'orchestrator:status', filePath, running: true, turnCount: 1 });
 
-    try {
-      await this.executeTurn(filePath, agent, controller.signal);
-    } finally {
+    const turn = this.executeTurn(filePath, agent, controller.signal).finally(() => {
       this.activeRuns.delete(filePath);
       this.emitEvent({ type: 'orchestrator:status', filePath, running: false, turnCount: 0 });
-    }
+    });
+    run.done = turn.then(noop, noop);
+    return turn;
   }
 
   async startLoop(filePath: string): Promise<void> {
@@ -155,17 +173,12 @@ export class ConversationOrchestrator {
     const controller = new AbortController();
     const runState: ActiveRun = { controller, turnCount: 0, looping: true };
     this.activeRuns.set(filePath, runState);
-
-    await this.sync.updateDocument(filePath, (d) => ({
-      ...d,
-      meta: { ...d.meta, status: 'running' },
-    }));
-
     this.emitEvent({ type: 'orchestrator:status', filePath, running: true, turnCount: 0 });
 
-    void (async () => {
+    runState.done = (async () => {
       let reason = 'completed';
       try {
+        await this.sync.patchRaw(filePath, (raw) => setStatusRaw(raw, 'running'));
         while (!controller.signal.aborted) {
           const latest = this.sync.getDocument(filePath);
           if (!latest) {
@@ -205,11 +218,8 @@ export class ConversationOrchestrator {
         const finalTurnCount = runState.turnCount;
         this.activeRuns.delete(filePath);
         await this.sync
-          .updateDocument(filePath, (d) => ({
-            ...d,
-            meta: { ...d.meta, status: controller.signal.aborted ? 'paused' : 'idle' },
-          }))
-          .catch(() => undefined);
+          .patchRaw(filePath, (raw) => setStatusRaw(raw, controller.signal.aborted ? 'paused' : 'idle'))
+          .catch(noop);
         this.emitEvent({
           type: 'orchestrator:status',
           filePath,
@@ -228,10 +238,7 @@ export class ConversationOrchestrator {
     }
     const doc = this.sync.getDocument(filePath);
     if (doc && doc.meta.status === 'running') {
-      await this.sync.updateDocument(filePath, (d) => ({
-        ...d,
-        meta: { ...d.meta, status: 'paused' },
-      }));
+      await this.sync.patchRaw(filePath, (raw) => setStatusRaw(raw, 'paused'));
     }
   }
 
@@ -304,7 +311,7 @@ export class ConversationOrchestrator {
       const finalThinking = result.thinking.trim() || streamedThinking.trim() || undefined;
       const durationMs = Date.now() - startMs;
 
-      await this.sync.updateDocument(filePath, (latest) => {
+      await this.sync.patchRaw(filePath, (raw, latest) => {
         const msgId = nextMessageId(latest.messages);
         const newMessage: ChatMessage = {
           id: msgId,
@@ -325,10 +332,7 @@ export class ConversationOrchestrator {
           mentions: extractMentions(finalContent),
           fileRefs: Array.from(new Set([...fileExcerpts.map((f) => f.path), ...extractFileRefs(finalContent)])),
         };
-        return {
-          ...latest,
-          messages: [...latest.messages, newMessage],
-        };
+        return appendMessageRaw(raw, newMessage);
       });
 
       this.emitEvent({ type: 'stream:end', filePath, messageId, status: 'done' });
@@ -338,7 +342,7 @@ export class ConversationOrchestrator {
       const errMsg = err instanceof Error ? err.message : String(err);
 
       if (aborted && streamedContent.trim().length > 0) {
-        await this.sync.updateDocument(filePath, (latest) => {
+        await this.sync.patchRaw(filePath, (raw, latest) => {
           const msgId = nextMessageId(latest.messages);
           const partialMsg: ChatMessage = {
             id: msgId,
@@ -356,7 +360,7 @@ export class ConversationOrchestrator {
             mentions: extractMentions(streamedContent),
             fileRefs: extractFileRefs(streamedContent),
           };
-          return { ...latest, messages: [...latest.messages, partialMsg] };
+          return appendMessageRaw(raw, partialMsg);
         });
       }
 
@@ -385,43 +389,30 @@ export class ConversationOrchestrator {
     const trimmed = content.trim();
     if (!trimmed) throw new Error('Nội dung tin nhắn không được để trống.');
 
-    const updated = await this.sync.updateDocument(filePath, (latest) => {
+    const updated = await this.sync.patchRaw(filePath, (raw, latest) => {
       const msgId = nextMessageId(latest.messages);
-      const newMsg: ChatMessage = {
+      return appendMessageRaw(raw, {
         id: msgId,
         author,
         timestamp: new Date().toISOString(),
         content: trimmed,
         mentions: extractMentions(trimmed),
         fileRefs: extractFileRefs(trimmed),
-      };
-      return {
-        ...latest,
-        messages: [...latest.messages, newMsg],
-      };
+      });
     });
 
     if (autoRun && !this.activeRuns.has(filePath)) {
-      void this.startLoop(filePath);
+      this.runInBackground(filePath, this.startLoop(filePath));
     }
 
     return updated;
   }
 
   async editMessage(filePath: string, messageId: string, content: string): Promise<ChatDocument> {
-    return this.sync.updateDocument(filePath, (latest) => {
-      const idx = latest.messages.findIndex((m) => m.id === messageId);
-      if (idx === -1) throw new Error(`Không tìm thấy tin nhắn ${messageId}`);
-      const old = latest.messages[idx];
-      const updatedMsg: ChatMessage = {
-        ...old,
-        content: content.trim(),
-        mentions: extractMentions(content),
-        fileRefs: extractFileRefs(content),
-      };
-      const messages = [...latest.messages];
-      messages[idx] = updatedMsg;
-      return { ...latest, messages };
+    return this.sync.patchRaw(filePath, (raw, latest) => {
+      const old = latest.messages.find((m) => m.id === messageId);
+      if (!old) throw new Error(`Không tìm thấy tin nhắn ${messageId}`);
+      return replaceMessageRaw(raw, messageId, { ...old, content: content.trim() });
     });
   }
 
@@ -462,25 +453,22 @@ export class ConversationOrchestrator {
   }
 
   async rerunFromMessage(filePath: string, messageId: string): Promise<ChatDocument> {
-    if (this.activeRuns.has(filePath)) {
+    const run = this.activeRuns.get(filePath);
+    if (run) {
       await this.pause(filePath);
+      await run.done; // wait for cleanup, otherwise runStep below sees the old run
     }
 
     let targetAgentId: string | undefined;
-    const updated = await this.sync.updateDocument(filePath, (latest) => {
-      const idx = latest.messages.findIndex((m) => m.id === messageId);
-      if (idx === -1) throw new Error(`Không tìm thấy tin nhắn ${messageId}`);
-
-      const targetMsg = latest.messages[idx];
+    const updated = await this.sync.patchRaw(filePath, (raw, latest) => {
+      const targetMsg = latest.messages.find((m) => m.id === messageId);
+      if (!targetMsg) throw new Error(`Không tìm thấy tin nhắn ${messageId}`);
       const isAgentMsg = latest.meta.agents.some((a) => a.id === targetMsg.author);
-      if (isAgentMsg) {
-        targetAgentId = targetMsg.author;
-        return { ...latest, messages: latest.messages.slice(0, idx) };
-      }
-      return { ...latest, messages: latest.messages.slice(0, idx + 1) };
+      if (isAgentMsg) targetAgentId = targetMsg.author;
+      return truncateMessagesRaw(raw, messageId, !isAgentMsg);
     });
 
-    void this.runStep(filePath, targetAgentId);
+    this.runInBackground(filePath, this.runStep(filePath, targetAgentId));
     return updated;
   }
 }

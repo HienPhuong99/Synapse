@@ -1,4 +1,5 @@
 import { buildConversationTranscript, buildSystemPrompt } from './openaiCompat.js';
+import { readSse } from './sse.js';
 import type { ProviderPromptContext, ProviderStreamCallbacks, ProviderStreamResult } from './types.js';
 
 export async function runAnthropicProvider(
@@ -19,8 +20,8 @@ export async function runAnthropicProvider(
     },
     signal: ctx.signal,
     body: JSON.stringify({
-      model: ctx.agent.model || 'claude-sonnet-4-5',
-      max_tokens: 2048,
+      model: ctx.agent.model || 'claude-opus-5-5',
+      max_tokens: 8192,
       stream: true,
       system: buildSystemPrompt(ctx),
       messages: [
@@ -37,53 +38,36 @@ export async function runAnthropicProvider(
     throw new Error(`Anthropic error (${res.status}): ${errText}`);
   }
 
-  const reader = res.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = '';
   let content = '';
   let thinking = '';
   let tokensIn: number | undefined;
   let tokensOut: number | undefined;
 
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
-
-    const lines = buffer.split('\n');
-    buffer = lines.pop() ?? '';
-
-    for (const rawLine of lines) {
-      const line = rawLine.trim();
-      if (!line.startsWith('data:')) continue;
-      const data = line.slice(5).trim();
-      if (!data) continue;
-
-      try {
-        const parsed = JSON.parse(data) as {
-          type?: string;
-          delta?: { type?: string; text?: string; thinking?: string };
-          message?: { usage?: { input_tokens?: number } };
-          usage?: { output_tokens?: number };
-        };
-        if (parsed.type === 'message_start' && parsed.message?.usage?.input_tokens) {
-          tokensIn = parsed.message.usage.input_tokens;
-        } else if (parsed.type === 'content_block_delta') {
-          if (parsed.delta?.type === 'thinking_delta' && parsed.delta.thinking) {
-            thinking += parsed.delta.thinking;
-            callbacks.onThinkingDelta(parsed.delta.thinking);
-          } else if (parsed.delta?.type === 'text_delta' && parsed.delta.text) {
-            content += parsed.delta.text;
-            callbacks.onContentDelta(parsed.delta.text);
-          }
-        } else if (parsed.type === 'message_delta' && parsed.usage?.output_tokens) {
-          tokensOut = parsed.usage.output_tokens;
+  await readSse(res, (data) => {
+    try {
+      const parsed = JSON.parse(data) as {
+        type?: string;
+        delta?: { type?: string; text?: string; thinking?: string };
+        message?: { usage?: { input_tokens?: number } };
+        usage?: { output_tokens?: number };
+      };
+      if (parsed.type === 'message_start' && parsed.message?.usage?.input_tokens) {
+        tokensIn = parsed.message.usage.input_tokens;
+      } else if (parsed.type === 'content_block_delta') {
+        if (parsed.delta?.type === 'thinking_delta' && parsed.delta.thinking) {
+          thinking += parsed.delta.thinking;
+          callbacks.onThinkingDelta(parsed.delta.thinking);
+        } else if (parsed.delta?.type === 'text_delta' && parsed.delta.text) {
+          content += parsed.delta.text;
+          callbacks.onContentDelta(parsed.delta.text);
         }
-      } catch {
-        // Ignore partial JSON lines
+      } else if (parsed.type === 'message_delta' && parsed.usage?.output_tokens) {
+        tokensOut = parsed.usage.output_tokens;
       }
+    } catch {
+      // Ignore partial JSON lines
     }
-  }
+  });
 
   return { thinking, content, tokensIn, tokensOut };
 }

@@ -11,11 +11,11 @@ import {
   FileCode2,
   GitBranch,
   RotateCcw,
-  Sparkles,
   User,
   X,
 } from 'lucide-react';
 import type { AgentConfig, ChatMessage } from '@synapse/shared';
+import { highlightLanguages } from '../lib/highlightLanguages.ts';
 import { useSynapseStore } from '../store/useSynapseStore.ts';
 
 interface MessageCardProps {
@@ -42,7 +42,7 @@ export function MessageCard({
   const openFilePreview = useSynapseStore((s) => s.openFilePreview);
 
   const isHuman = message.author.toLowerCase() === 'human' || message.author.toLowerCase() === 'user';
-  const accentColor = agent?.color ?? (isHuman ? '#38bdf8' : '#a1a1aa');
+  const railColor = agent?.color ?? (isHuman ? '#5b9cf6' : '#85858b');
 
   const handleSave = async () => {
     if (!onEdit || !draft.trim()) return;
@@ -62,64 +62,67 @@ export function MessageCard({
     return parsed.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
   })();
 
+  const statusTone = (() => {
+    const s = message.meta?.headingSuffix ?? '';
+    if (/\b(DONE|AGREED|FIXED)\b/i.test(s)) return 'text-[#4cc38a] border-[#4cc38a]/25 bg-[#4cc38a]/10';
+    if (/\bOPEN\b/i.test(s)) return 'text-[#e5a04d] border-[#e5a04d]/25 bg-[#e5a04d]/10';
+    return 'text-[#a1a1a6] border-[rgba(237,237,237,0.1)] bg-[#232325]';
+  })();
+
   return (
     <article
-      className={`group relative rounded-xl border p-4 transition ${
+      className={`group relative rounded-xl border bg-[#19191b] p-5 transition-colors duration-150 ${
         isStreaming
-          ? 'border-indigo-500/60 bg-zinc-900/90 shadow-lg shadow-indigo-950/20'
-          : isHuman
-            ? 'border-sky-500/20 bg-zinc-900/55'
-            : 'border-zinc-800/90 bg-zinc-900/75 hover:border-zinc-700/90'
+          ? 'border-[rgba(237,237,237,0.2)]'
+          : 'border-[rgba(237,237,237,0.08)] hover:border-[rgba(237,237,237,0.14)]'
       }`}
+      style={{ borderLeftWidth: '2px', borderLeftColor: railColor }}
     >
       {/* Header */}
-      <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2.5">
+      <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
+        <div className="flex items-center gap-3">
           <div
-            className="flex h-7 w-7 items-center justify-center rounded-lg text-xs font-bold text-white shadow-sm"
-            style={{ backgroundColor: accentColor }}
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-[rgba(237,237,237,0.1)] bg-[#232325] text-xs font-medium text-[#ededed]"
           >
-            {isHuman ? <User className="h-4 w-4" /> : (agent?.name?.[0] || message.author[0]).toUpperCase()}
+            {isHuman ? (
+              <User className="h-4 w-4 text-[#85858b]" strokeWidth={1.5} />
+            ) : (
+              <span>{(agent?.name?.[0] || message.author[0]).toUpperCase()}</span>
+            )}
           </div>
           <div>
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-semibold text-zinc-100">
-                {isHuman ? 'Bạn (@human)' : `${agent?.name || message.author} (@${message.author})`}
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-[14px] font-medium text-[#ededed]">
+                {isHuman ? 'Bạn' : agent?.name || message.author}
               </span>
+              <span className="font-mono text-xs text-[#85858b]">@{message.author}</span>
               {message.meta?.target && (
-                <span className="rounded bg-zinc-800/80 px-1.5 py-0.5 font-mono text-[10px] text-zinc-300">
-                  → @{message.meta.target}
-                </span>
+                <span className="font-mono text-xs text-[#a1a1a6]">→ @{message.meta.target}</span>
               )}
               {agent?.role && (
-                <span className="rounded bg-zinc-800 px-1.5 py-0.5 text-[10px] font-medium text-zinc-300">
+                <span className="rounded bg-[#232325] px-1.5 py-0.5 text-xs text-[#a1a1a6]">
                   {agent.role}
                 </span>
               )}
               {message.meta?.headingSuffix && (
-                <span className="rounded bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-300 ring-1 ring-amber-500/20">
+                <span className={`rounded border px-1.5 py-0.5 text-xs ${statusTone}`}>
                   {message.meta.headingSuffix.replace(/`/g, '')}
                 </span>
               )}
-              {message.meta?.model && (
-                <span className="inline-flex items-center gap-1 rounded bg-indigo-500/10 px-1.5 py-0.5 font-mono text-[10px] text-indigo-300 ring-1 ring-indigo-500/20">
-                  <Sparkles className="h-2.5 w-2.5" />
-                  {message.meta.model}
-                </span>
-              )}
               {isStreaming && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-medium text-emerald-300">
-                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" />
-                  Đang phản hồi...
+                <span className="inline-flex items-center gap-1.5 text-xs text-[#4cc38a]">
+                  <span className="h-1.5 w-1.5 rounded-full bg-[#4cc38a]" />
+                  Đang phản hồi
                 </span>
               )}
             </div>
-            <div className="flex items-center gap-2 font-mono text-[10px] text-zinc-500">
+            <div className="mt-0.5 flex flex-wrap items-center gap-2 font-mono text-xs text-[#85858b] tabular-nums">
               <span>{message.id}</span>
               {formattedTime && <span>· {formattedTime}</span>}
+              {message.meta?.model && <span>· {message.meta.model}</span>}
               {message.meta?.tokens_out && (
                 <span>
-                  · {message.meta.tokens_in ?? 0} in / {message.meta.tokens_out} out tok
+                  · {message.meta.tokens_in ?? 0}/{message.meta.tokens_out} tok
                 </span>
               )}
               {message.meta?.duration_ms && <span>· {(message.meta.duration_ms / 1000).toFixed(1)}s</span>}
@@ -129,7 +132,7 @@ export function MessageCard({
 
         {/* Actions */}
         {!isStreaming && !editing && (
-          <div className="flex items-center gap-1 opacity-0 transition group-hover:opacity-100">
+          <div className="flex items-center gap-1 opacity-0 transition-opacity duration-150 group-hover:opacity-100">
             {onEdit && (
               <button
                 type="button"
@@ -137,10 +140,10 @@ export function MessageCard({
                   setDraft(message.content);
                   setEditing(true);
                 }}
-                className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100"
-                title="Sửa nội dung trực tiếp trong .chat.md"
+                className="inline-flex h-7 items-center gap-1 rounded-md px-2 text-xs text-[#85858b] transition-colors duration-150 hover:bg-[#232325] hover:text-[#ededed]"
+                title="Sửa trực tiếp trong file"
               >
-                <Edit3 className="h-3 w-3" />
+                <Edit3 className="h-3.5 w-3.5" strokeWidth={1.5} />
                 Sửa
               </button>
             )}
@@ -148,10 +151,10 @@ export function MessageCard({
               <button
                 type="button"
                 onClick={() => void onBranch(message.id)}
-                className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100"
-                title="Rẽ nhánh thành file .chat.md mới từ tin nhắn này"
+                className="inline-flex h-7 items-center gap-1 rounded-md px-2 text-xs text-[#85858b] transition-colors duration-150 hover:bg-[#232325] hover:text-[#ededed]"
+                title="Rẽ nhánh thành file .chat.md mới"
               >
-                <GitBranch className="h-3 w-3" />
+                <GitBranch className="h-3.5 w-3.5" strokeWidth={1.5} />
                 Branch
               </button>
             )}
@@ -159,10 +162,10 @@ export function MessageCard({
               <button
                 type="button"
                 onClick={() => void onRerun(message.id)}
-                className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] text-zinc-400 hover:bg-zinc-800 hover:text-indigo-300"
-                title="Chạy lại AI từ điểm này"
+                className="inline-flex h-7 items-center gap-1 rounded-md px-2 text-xs text-[#85858b] transition-colors duration-150 hover:bg-[#232325] hover:text-[#ededed]"
+                title="Chạy lại từ điểm này"
               >
-                <RotateCcw className="h-3 w-3" />
+                <RotateCcw className="h-3.5 w-3.5" strokeWidth={1.5} />
                 Chạy lại
               </button>
             )}
@@ -172,18 +175,22 @@ export function MessageCard({
 
       {/* Collapsible Thinking */}
       {message.thinking && (
-        <div className="mb-3 rounded-lg border border-zinc-800 bg-zinc-950/70">
+        <div className="mb-3 rounded-lg border border-[rgba(237,237,237,0.08)] bg-[#141415]">
           <button
             type="button"
             onClick={() => setShowThinking((v) => !v)}
-            className="flex w-full items-center gap-1.5 px-3 py-1.5 text-left text-xs text-zinc-400 hover:text-zinc-200"
+            className="flex h-8 w-full items-center gap-2 px-3 text-left text-xs text-[#85858b] transition-colors duration-150 hover:text-[#ededed]"
           >
-            {showThinking ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
-            <Brain className="h-3.5 w-3.5 text-purple-400" />
+            {showThinking ? (
+              <ChevronDown className="h-3.5 w-3.5" strokeWidth={1.5} />
+            ) : (
+              <ChevronRight className="h-3.5 w-3.5" strokeWidth={1.5} />
+            )}
+            <Brain className="h-3.5 w-3.5" strokeWidth={1.5} />
             <span>Quá trình suy nghĩ</span>
           </button>
           {showThinking && (
-            <div className="border-t border-zinc-800/80 px-3 py-2 font-mono text-xs whitespace-pre-wrap text-zinc-400">
+            <div className="border-t border-[rgba(237,237,237,0.08)] px-3 py-2.5 font-mono text-xs whitespace-pre-wrap text-[#a1a1a6]">
               {message.thinking}
             </div>
           )}
@@ -197,31 +204,34 @@ export function MessageCard({
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             rows={6}
-            className="w-full rounded-lg border border-indigo-500/50 bg-zinc-950 p-3 font-mono text-xs text-zinc-100 focus:outline-none"
+            className="w-full rounded-lg border border-[rgba(237,237,237,0.16)] bg-[#141415] p-3 font-mono text-xs text-[#ededed] focus:border-[#5b9cf6] focus:outline-none"
           />
           <div className="flex justify-end gap-2">
             <button
               type="button"
               onClick={() => setEditing(false)}
-              className="inline-flex items-center gap-1 rounded-md border border-zinc-700 px-2.5 py-1 text-xs text-zinc-300 hover:bg-zinc-800"
+              className="inline-flex h-8 items-center gap-1 rounded-lg border border-[rgba(237,237,237,0.1)] bg-[#232325] px-3 text-xs text-[#ededed] hover:bg-[#2a2a2d]"
             >
-              <X className="h-3.5 w-3.5" />
+              <X className="h-3.5 w-3.5" strokeWidth={1.5} />
               Hủy
             </button>
             <button
               type="button"
               disabled={saving}
               onClick={() => void handleSave()}
-              className="inline-flex items-center gap-1 rounded-md bg-indigo-600 px-3 py-1 text-xs font-medium text-white hover:bg-indigo-500 disabled:opacity-50"
+              className="inline-flex h-8 items-center gap-1 rounded-lg bg-[#ededed] px-3 text-xs font-medium text-[#141415] hover:bg-white disabled:opacity-40"
             >
-              <Check className="h-3.5 w-3.5" />
-              {saving ? 'Đang lưu...' : 'Lưu vào .chat.md'}
+              <Check className="h-3.5 w-3.5" strokeWidth={1.75} />
+              {saving ? 'Đang lưu' : 'Lưu vào file'}
             </button>
           </div>
         </div>
       ) : (
         <div className="synapse-markdown">
-          <Markdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]}>
+          <Markdown
+            remarkPlugins={[remarkGfm]}
+            rehypePlugins={[[rehypeHighlight, { languages: highlightLanguages }]]}
+          >
             {message.content || (isStreaming ? '▋' : '')}
           </Markdown>
         </div>
@@ -229,15 +239,15 @@ export function MessageCard({
 
       {/* File references pills */}
       {message.fileRefs.length > 0 && (
-        <div className="mt-3 flex flex-wrap gap-1.5 border-t border-zinc-800/70 pt-2.5">
+        <div className="mt-3 flex flex-wrap gap-1.5 border-t border-[rgba(237,237,237,0.08)] pt-3">
           {message.fileRefs.map((file) => (
             <button
               key={file}
               type="button"
               onClick={() => void openFilePreview(file)}
-              className="inline-flex items-center gap-1 rounded-md border border-zinc-800 bg-zinc-950 px-2 py-0.5 font-mono text-[11px] text-zinc-300 hover:border-indigo-500/50 hover:text-indigo-300"
+              className="inline-flex items-center gap-1.5 rounded-md border border-[rgba(237,237,237,0.08)] bg-[#141415] px-2 py-1 font-mono text-xs text-[#a1a1a6] transition-colors duration-150 hover:border-[rgba(237,237,237,0.18)] hover:text-[#ededed]"
             >
-              <FileCode2 className="h-3 w-3 text-indigo-400" />
+              <FileCode2 className="h-3.5 w-3.5 text-[#85858b]" strokeWidth={1.5} />
               {file}
             </button>
           ))}

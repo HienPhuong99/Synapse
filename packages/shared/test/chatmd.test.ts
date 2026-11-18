@@ -4,8 +4,12 @@ import {
   extractInsights,
   extractMentions,
   nextMessageId,
+  appendMessageRaw,
   parseChatMd,
+  replaceMessageRaw,
   serializeChatMd,
+  setStatusRaw,
+  truncateMessagesRaw,
 } from '../src/chatmd.js';
 
 const SAMPLE_MD = `---
@@ -128,5 +132,40 @@ Xác nhận ổn.
     const roundTrip = serializeChatMd(doc);
     assert.equal(roundTrip.startsWith('---'), false);
     assert.match(roundTrip, /### `\[Claude -> Gemini \| 2026-11-18 09:45 \+07\]` — Status: Review `FIXED`/);
+  });
+
+  it('patches raw text without touching what other agents wrote', () => {
+    const thread = [
+      '# Board',
+      '',
+      '### `[Claude | 2026-11-18 09:55 +07]` — Status: `OPEN`',
+      '',
+      'Plan, nhờ @gemini review.',
+      '',
+      '### `[Gemini CLI -> Claude | 2026-11-18 10:05 +07]` — `AGREED`',
+      'OK.',
+      '',
+    ].join('\r\n');
+    const msg = { id: 'x', author: 'human', timestamp: '', content: 'Tiếp nhé', mentions: [], fileRefs: [] };
+
+    // append: original bytes stay a verbatim prefix, CRLF kept, heading has no guessed target
+    const appended = appendMessageRaw(thread, msg);
+    assert.ok(appended.startsWith(thread.trimEnd()));
+    assert.ok(!/[^\r]\n/.test(appended), 'stays CRLF');
+    assert.match(appended, /### `\[Chủ máy \| [^\]]+\]`\r\n\r\nTiếp nhé\r\n$/);
+    assert.equal(parseChatMd(appended).messages.length, 3);
+
+    // replace: only the body of msg_02 changes, its odd heading survives verbatim
+    const edited = replaceMessageRaw(thread, 'msg_02', { ...parseChatMd(thread).messages[1], content: 'Đã sửa' });
+    assert.equal(edited, thread.replace('OK.', '\r\nĐã sửa'));
+
+    // truncate
+    assert.equal(truncateMessagesRaw(thread, 'msg_02', false), thread.split('\r\n\r\n### `[Gemini')[0] + '\r\n');
+    assert.equal(truncateMessagesRaw(thread, 'msg_02', true), thread);
+
+    // status: unknown frontmatter keys and the body are kept
+    const fm = '---\nschema: synapse/v1\ncustom_key: 1\nstatus: idle\n---\n\n## [msg_01] @human\nhi\n';
+    assert.equal(setStatusRaw(fm, 'running'), fm.replace('status: idle', 'status: running'));
+    assert.equal(setStatusRaw(thread, 'running'), thread);
   });
 });

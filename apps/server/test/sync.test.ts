@@ -153,4 +153,28 @@ Hãy kiểm tra thiết kế @architect.
       await fs.rm(secondDir, { recursive: true, force: true });
     }
   });
+
+  it('rejects requests from foreign origins and rebinding hosts', async () => {
+    const evil = await fetch(`${baseUrl}/api/settings`, { headers: { Origin: 'https://evil.example' } });
+    assert.equal(evil.status, 403);
+    assert.equal(evil.headers.get('access-control-allow-origin'), null);
+    const local = await fetch(`${baseUrl}/api/settings`, { headers: { Origin: 'http://localhost:5173' } });
+    assert.equal(local.status, 200);
+  });
+
+  it('survives rerun when no agent can run', async () => {
+    await fetch(`${baseUrl}/api/sessions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fileName: 'noagents', title: 'x', agents: [], initialPrompt: 'hi' }),
+    });
+    const res = await fetch(`${baseUrl}/api/sessions/rerun`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path: 'examples/noagents.chat.md', messageId: 'msg_01' }),
+    });
+    assert.equal(res.status, 200);
+    await new Promise((r) => setTimeout(r, 100));
+    assert.equal((await fetch(`${baseUrl}/api/health`)).status, 200);
+  });
 });
