@@ -2,9 +2,14 @@ node_modules/
 dist/
 .synapse/
 .claude/settings.local.json
+.claude/launch.json
 *.tsbuildinfo
 *.log
 .env
 .env.local
 chat.md
-chat.archive.md
+*.chat.md
+!examples/*.chat.md
+*.archive.md
+AGENTS.md
+CLAUDE.md
