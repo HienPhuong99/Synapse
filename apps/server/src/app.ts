@@ -315,22 +315,17 @@ export async function createSynapseServer(options: CreateServerOptions): Promise
     const { path: relPath, keepLatest = 2 } = req.body;
     if (!relPath) return reply.code(400).send({ error: 'Missing path' });
 
-    let archivedText = '';
-    let archivedCount = 0;
-    const doc = await sync.patchRaw(relPath, (raw) => {
-      const result = compactChatMdRaw(raw, keepLatest);
-      if (!result) return raw;
-      archivedText = result.archivedText;
-      archivedCount = result.archivedCount;
-      return result.compacted;
-    });
-
-    if (archivedCount === 0) {
+    const filePath = sync.getDocument(relPath)?.filePath;
+    if (!filePath) return reply.code(404).send({ error: 'Không tìm thấy file' });
+    const pre = compactChatMdRaw(await fsPromises.readFile(sync.resolveSafe(filePath), 'utf8'), keepLatest);
+    if (!pre) {
+      const doc = sync.getDocument(filePath)!;
       return { ok: true, archivedCount: 0, document: doc, insights: extractInsights(doc) };
     }
+    const archivedText = pre.archivedText;
 
-    const dir = path.posix.dirname(doc.filePath);
-    const base = path.posix.basename(doc.filePath);
+    const dir = path.posix.dirname(filePath);
+    const base = path.posix.basename(filePath);
     const archiveName = base.toLowerCase() === 'chat.md' ? 'chat.archive.md' : `${base.replace(/\.chat\.md$/i, '')}.archive.md`;
     const archiveRel = dir === '.' ? archiveName : `${dir}/${archiveName}`;
     const archiveAbs = sync.resolveSafe(archiveRel);
@@ -340,6 +335,15 @@ export async function createSynapseServer(options: CreateServerOptions): Promise
       const sep = existing.trimEnd() ? '\n\n' : '';
       const nextContent = `${existing.trimEnd()}${sep}${archivedText}\n`;
       await sync.writeQueue.writeAtomic(archiveAbs, nextContent);
+    });
+
+    // Archive is written first: a crash or a turn landing in between leaves a duplicate in the archive, never a lost turn.
+    let archivedCount = 0;
+    const doc = await sync.patchRaw(filePath, (raw) => {
+      const result = compactChatMdRaw(raw, keepLatest);
+      if (!result || result.archivedText !== archivedText) return raw;
+      archivedCount = result.archivedCount;
+      return result.compacted;
     });
 
     return {

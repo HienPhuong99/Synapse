@@ -177,6 +177,7 @@ Xác nhận ổn.
       '',
       '## 1. Tóm tắt lịch sử',
       '- Mốc 0',
+      '- Mốc 0b',
       '',
       '## 2. Việc còn mở',
       '- Việc X',
@@ -204,6 +205,8 @@ Xác nhận ổn.
     assert.equal(parseChatMd(res.compacted).messages.length, 2);
     assert.match(res.compacted, /## 2\. Việc còn mở\n- Việc X/);
     assert.match(res.compacted, /\*\*@claude \(2026-11-18 10:00 \+07\):\*\* DONE/);
+    assert.match(res.compacted, /- Mốc 0b\n- \*\*@claude/, 'summary goes at the end of section 1');
+    assert.equal(compactChatMdRaw(raw, 0)?.archivedCount, 2, 'bad keepLatest falls back to 2');
 
     assert.equal(estimateCostUsd('synapse-sim-1', 'simulator', 1000, 1000), 0);
     assert.ok(estimateCostUsd('claude-opus-5-5', 'anthropic', 1_000_000, 0) === 5);

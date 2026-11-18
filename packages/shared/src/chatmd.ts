@@ -547,6 +547,7 @@ export function compactChatMdRaw(
   raw: string,
   keepLatest = 2
 ): { compacted: string; archivedText: string; archivedCount: number } | null {
+  keepLatest = Math.max(1, Math.floor(keepLatest) || 2);
   const scan = scanChatMd(raw);
   if (scan.blocks.length <= keepLatest) return null;
 
@@ -571,7 +572,7 @@ export function compactChatMdRaw(
   const keptTail = scan.text.slice(firstKeptStart).trimStart();
 
   let updatedHead = headPart;
-  const summaryHeading = /(^##\s+1\.\s+[^\n]*\n)([\s\S]*?)(?=\n##\s+2\.|\n---|\s*$)/m;
+  const summaryHeading = /(^##\s+1\.\s+[^\n]*\n)([\s\S]*?)(?=\n##\s+2\.|\n---|\s*(?![\s\S]))/m;
   if (summaryHeading.test(updatedHead)) {
     updatedHead = updatedHead.replace(summaryHeading, (_all, hdr: string, body: string) => {
       const cleanBody = body.trimEnd();
