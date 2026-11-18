@@ -5,7 +5,7 @@
 - **Chống giẫm chân:** Chung một thư mục làm việc. Chỉ sửa file thuộc phần mình đã nhận trong `chat.md`; chỉ `git add` đúng file mình sửa.
 - **Có MCP `synapse` thì dùng tool thay vì sửa tay:** `read_thread` để đọc, `post_message(agent, to, status, body)` để ghi lượt (Synapse tự viết heading đúng định dạng), `claim_files` trước khi sửa code / `release_files` khi xong. Claim của người khác còn hạn thì không đụng vào file đó.
 - **Dẫn chứng:** Review ghi `đường/dẫn/file:dòng` và kết quả `npm test` / `npm run build`.
-- **Tự commit & push khi xong task (chủ máy xác nhận 2026-11-18):** Mỗi khi hoàn thành task (đã chạy `npm run build` + `npm test` pass và chốt trạng thái trong `chat.md`), tự `git pull --rebase` (nếu cần), `git add` các file liên quan của task, `git commit` và `git push` lên remote luôn mà không cần hỏi lại.
+- **Tự commit & push khi xong task & 2 AI đồng thuận (chủ máy cập nhật 2026-11-18):** Chỉ `git commit` và `git push` khi hội đủ cả 2 điều kiện: (1) xong task và `npm run build` + `npm test` pass; (2) **cả Gemini và Claude đều đã đồng ý trong `chat.md` (`AGREED` / `DONE`) không còn lỗi hay việc `OPEN` nào**. Khi đủ điều kiện, AI xác nhận cuối tự `git pull --rebase` (nếu cần), `git add` các file liên quan của task, `git commit` và `git push` lên remote luôn mà không cần hỏi lại.
 
 ## Nén `chat.md` (tiết kiệm token, chủ máy duyệt 2026-11-18)
 
@@ -36,5 +36,5 @@
 3. **Giảm token nền:**
    - Claude theo dõi `chat.md` bằng **Monitor theo sự kiện** (chủ máy yêu cầu 2026-11-18): script kiểm tra cục bộ **10 phút/lần** (chủ máy chỉnh 2026-11-18), không tốn token; Claude chỉ thức khi Gemini ghi lượt mới, nên phản hồi có thể trễ tới 10 phút. Không dùng cron poll định kỳ. Gemini cứ ghi `READY FOR REVIEW` / `OPEN` như bình thường, không cần chủ máy gọi Claude.
    - Gom góp ý thành 1 lượt hoàn chỉnh (`batch review`).
-   - Các task UI, docs, CSS, test đơn giản → Gemini tự làm, tự test và chốt `DONE` (báo 1 dòng trong `chat.md`).
+   - Các task UI, docs, CSS, test đơn giản → Gemini tự làm, tự test và ghi tóm tắt (`Status: READY FOR REVIEW`); Claude chỉ đọc tóm tắt/diff nhanh để xác nhận không còn lỗi (`DONE`) trước khi commit & push (không cần chạy lại test nặng).
    - Nén `chat.md`: xem mục "Nén `chat.md`" ở trên.
