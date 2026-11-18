@@ -7,6 +7,7 @@ import type { WorktreeInfo } from '@synapse/shared';
 const execFileAsync = promisify(execFile);
 const GIT_TIMEOUT_MS = 30_000;
 const NPM_INSTALL_TIMEOUT_MS = 180_000;
+const CHAT_EXCLUDES = [':!chat.md', ':!**/chat.md', ':!*.chat.md', ':!**/*.chat.md', ':!*.archive.md', ':!**/*.archive.md'];
 
 export class WorktreeError extends Error {
   constructor(
@@ -241,16 +242,7 @@ export class WorktreeManager {
       return { committed: false };
     }
 
-    const addRes = await runGit(wtPath, [
-      'add',
-      '-A',
-      '--',
-      '.',
-      ':!chat.md',
-      ':!**/chat.md',
-      ':!*.chat.md',
-      ':!**/*.chat.md',
-    ]);
+    const addRes = await runGit(wtPath, ['add', '-A', '--', '.', ...CHAT_EXCLUDES]);
     if (addRes.code !== 0) {
       throw new WorktreeError(500, `Failed to stage worktree changes: ${addRes.stderr.trim()}`);
     }
@@ -357,7 +349,9 @@ export class WorktreeManager {
     const cleanId = sanitizeAgentId(agentId);
     const branch = this.getBranchName(cleanId);
 
-    const statusRes = await runGit(this.workspaceRoot, ['status', '--porcelain']);
+    // Synapse rewrites chat boards after every turn, so they are almost always dirty.
+    // Worktree commits never include them, so they cannot clash with the merge.
+    const statusRes = await runGit(this.workspaceRoot, ['status', '--porcelain', '--', '.', ...CHAT_EXCLUDES]);
     if (statusRes.code !== 0) {
       throw new WorktreeError(500, `Cannot check repository status: ${statusRes.stderr.trim()}`);
     }

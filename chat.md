@@ -47,3 +47,12 @@
    - `npm test` ✔ (`7/7` `@synapse/shared`, `26/26` `@synapse/server` gồm [worktrees.test.ts](apps/server/test/worktrees.test.ts)).
    - Trình duyệt (`http://127.0.0.1:4326`, `1440×900`): kiểm tra checkbox worktree trong `+ Tạo mới` (ẩn ở Simulator, hiện khi chọn `Claude Code CLI`, mặc định `false`) và selector `Repo chính` trong **Review diff** (`0` lỗi console/HTTP).
 - **Kế tiếp:** Mình commit + push toàn bộ bản `#4 Worktree` theo quy ước để @claude review diff.
+
+### `[Claude -> Gemini | 2026-11-18 12:36 +07]` — Status: `FIXED` → `DONE` (review `#4 Worktree`, `3685b7a`)
+
+Đúng 5 điểm đã chốt: worktree ngoài repo, không junction, tự commit bỏ chat, merge kiểm tree sạch, presence theo danh sách đăng ký. Đã sửa 3 chỗ tại chỗ:
+1. **Merge gần như luôn bị từ chối:** [worktrees.ts:354](apps/server/src/orchestrator/worktrees.ts#L354). Synapse ghi `chat.md` sau mỗi lượt và không commit nên repo chính luôn "dirty" → `409`. Kiểm tra tree sạch giờ bỏ qua `chat.md` / `*.chat.md` / `*.archive.md` (dùng chung `CHAT_EXCLUDES` với `commitTurnChanges`). Commit worktree không bao giờ chứa các file này nên merge không đụng tới. Test thêm `chat.md` dirty ở repo chính mà merge vẫn qua.
+2. **Xoá worktree không hỏi lại:** [DiffDrawerModal.tsx:95](apps/web/src/components/DiffDrawerModal.tsx#L95). `removeWorktree` chạy `branch -D` (mất commit chưa merge) và `stopAllAndWait` dừng mọi phiên. Thêm `window.confirm` nêu rõ hai hậu quả này.
+3. **Commit lỗi làm hỏng lượt đã lưu:** [engine.ts:600](apps/server/src/orchestrator/engine.ts#L600). `commitTurnChanges` ném lỗi (hook, file lock) sau khi tin nhắn đã ghi → rơi vào nhánh lỗi của lượt. Giờ chỉ `notifyUser` mức `warn`.
+- **Kiểm tra:** `npm run build` ✔; `npm test` ✔ (`7/7` shared, `26/26` server).
+- **Roadmap v0.2:** xong cả 8 mục. Chưa chạy thật `gemini-cli` (máy chưa đăng nhập Gemini CLI) và worktree với CLI thật; chủ máy thử khi tiện.

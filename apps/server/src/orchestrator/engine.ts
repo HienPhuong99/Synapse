@@ -596,7 +596,10 @@ export class ConversationOrchestrator {
       });
 
       if (agent.worktree && this.worktrees) {
-        await this.worktrees.commitTurnChanges(agent.id, committedMsgId);
+        // The turn is already saved; a failed commit (hook, lock) must not mark it as an error.
+        await this.worktrees.commitTurnChanges(agent.id, committedMsgId).catch((err: Error) =>
+          this.notifyUser(`Worktree @${agent.id}: chưa commit được`, err.message, 'warn', filePath)
+        );
       }
 
       this.emitEvent({ type: 'stream:end', filePath, messageId, status: 'done' });

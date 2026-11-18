@@ -80,10 +80,13 @@ test('WorktreeManager isolates directory outside repo, excludes chat files on au
 
     // Revert README so main repo is clean, then merge succeeds
     await git(repoDir, 'checkout', '--', 'README.md');
+    // A live chat board in the main repo is always dirty and must not block the merge.
+    await fs.writeFile(path.join(repoDir, 'chat.md'), '# live board\n', 'utf8');
     const mergeRes = await manager.mergeWorktree('claude');
     assert.equal(mergeRes.merged, true);
     const mergedFeature = await fs.readFile(path.join(repoDir, 'src', 'feature.ts'), 'utf8');
     assert.equal(mergedFeature.replace(/\r\n/g, '\n'), 'export const feature = true;\n');
+    await fs.rm(path.join(repoDir, 'chat.md'));
 
     // Remove claude worktree cleans directory and branch
     await manager.removeWorktree('claude');
