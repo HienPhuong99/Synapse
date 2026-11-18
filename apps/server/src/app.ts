@@ -255,7 +255,8 @@ export async function createSynapseServer(options: CreateServerOptions): Promise
   });
 
   app.post<{
-    Body: { path: string; action: 'start' | 'pause' | 'step'; agentId?: string };
+    /** agentId: forced agent for 'step', chairman for 'council'. */
+    Body: { path: string; action: 'start' | 'pause' | 'step' | 'council'; agentId?: string };
   }>('/api/sessions/control', async (req, reply) => {
     const { path: relPath, action, agentId } = req.body;
     if (!relPath || !action) return reply.code(400).send({ error: 'Missing path or action' });
@@ -264,8 +265,9 @@ export async function createSynapseServer(options: CreateServerOptions): Promise
       await orchestrator.pause(relPath);
       return { ok: true, status: orchestrator.getStatus(relPath) };
     }
-    if (action === 'step') {
-      orchestrator.runInBackground(relPath, orchestrator.runStep(relPath, agentId));
+    if (action === 'step' || action === 'council') {
+      const task = action === 'step' ? orchestrator.runStep(relPath, agentId) : orchestrator.runCouncil(relPath, agentId);
+      orchestrator.runInBackground(relPath, task);
       return { ok: true, status: orchestrator.getStatus(relPath) };
     }
     if (action === 'start') {

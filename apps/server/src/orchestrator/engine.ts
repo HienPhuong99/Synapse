@@ -31,6 +31,45 @@ interface ActiveRun {
 
 const noop = () => undefined;
 
+const COUNCIL_ANSWER =
+  '[Hội đồng — bước 1] Trả lời ĐỘC LẬP vấn đề trong các tin nhắn trên: cụ thể, đúng, làm được. Chỉ phân tích, KHÔNG sửa file.';
+const COUNCIL_REVIEW =
+  '[Hội đồng — bước 2] Dưới đây là các câu trả lời ẩn danh cho vấn đề trên. Nhận xét ngắn điểm mạnh/yếu từng câu ' +
+  '(độ đúng, cụ thể, làm được; KHÔNG ưu tiên câu dài). Chỉ phân tích, KHÔNG sửa file. ' +
+  'Dòng cuối cùng PHẢI đúng dạng: `XẾP HẠNG: B > A > C` (tốt nhất trước).';
+const COUNCIL_CHAIR =
+  '[Hội đồng — chủ toạ] Bạn là chủ toạ. Dưới đây là các câu trả lời (đã lộ tên) kèm hạng trung bình từ chấm chéo. ' +
+  'Viết câu trả lời CUỐI CÙNG tốt nhất cho vấn đề trên: giữ ý đúng, sửa chỗ sai, nêu bất đồng nếu còn. ' +
+  'Có đúng một dòng "Chốt: ...". Chỉ phân tích, KHÔNG sửa file.';
+const RANK_LINE = /XẾP HẠNG\s*[:：]\s*[A-Z](?:\s*>\s*[A-Z])*/giu;
+
+function withCouncilPrompt(doc: ChatDocument, content: string): ChatDocument {
+  const msg: ChatMessage = { id: 'council', author: 'human', timestamp: '', content, mentions: [], fileRefs: [] };
+  return { ...doc, messages: [...doc.messages, msg] };
+}
+
+/** Embedded answers must not contain lines the chat.md parser would read as new message headings. */
+function demoteHeadings(text: string): string {
+  return text.replace(/^#{1,3}(?=\s)/gm, '####');
+}
+
+export function parseRanking(text: string, labels: string[]): string[] | null {
+  const last = [...text.matchAll(RANK_LINE)].pop();
+  if (!last) return null;
+  const order = last[0].replace(/^[^:：]*[:：]/, '').split('>').map((s) => s.trim().toUpperCase());
+  return [...new Set(order.filter((l) => labels.includes(l)))];
+}
+
+/** Average 1-based position per label over the ballots that ranked it. */
+export function aggregateRanking(ballots: (string[] | null)[], labels: string[]): Map<string, number> {
+  const out = new Map<string, number>();
+  for (const label of labels) {
+    const pos = ballots.flatMap((b) => (b && b.includes(label) ? [b.indexOf(label) + 1] : []));
+    if (pos.length) out.set(label, pos.reduce((a, b) => a + b, 0) / pos.length);
+  }
+  return out;
+}
+
 export class ConversationOrchestrator {
   private activeRuns = new Map<string, ActiveRun>();
   private settings: ProviderSettings = {};
@@ -244,9 +283,98 @@ export class ConversationOrchestrator {
     }
   }
 
-  private async executeTurn(filePath: string, agent: AgentConfig, signal: AbortSignal): Promise<void> {
+  /**
+   * Council (after karpathy/llm-council): every agent answers the latest message in parallel, then ranks
+   * the anonymized answers, then the chairman synthesizes. Only the chairman's turn is written to the file;
+   * the answers and rankings go into its collapsed thinking block.
+   */
+  async runCouncil(filePath: string, chairmanId?: string): Promise<void> {
+    if (this.activeRuns.has(filePath)) throw new Error('Phiên thảo luận này đang chạy một lượt AI khác.');
+    const doc = this.sync.getDocument(filePath);
+    if (!doc) throw new Error(`Không tìm thấy file: ${filePath}`);
+    const agents = doc.meta.agents;
+    if (agents.length < 2) throw new Error('Hội đồng cần ít nhất 2 agent.');
+    const chairman = agents.find((a) => a.id === chairmanId) ?? agents[0];
+
+    const controller = new AbortController();
+    const run: ActiveRun = { controller, turnCount: 1, looping: false };
+    this.activeRuns.set(filePath, run);
+    this.emitEvent({ type: 'orchestrator:status', filePath, running: true, turnCount: 1 });
+
+    const task = (async () => {
+      const signal = controller.signal;
+      const answers = await this.askAll(filePath, agents, doc, COUNCIL_ANSWER, signal);
+      const ok = answers.filter((a) => a.text);
+      if (ok.length === 0) throw new Error(`Hội đồng: không agent nào trả lời được (${answers.map((a) => a.error).join('; ')})`);
+      const labels = ok.map((_, i) => String.fromCharCode(65 + i));
+
+      let ranks: Map<string, number> = new Map();
+      let reviews: { agent: AgentConfig; text?: string; error?: string }[] = [];
+      if (ok.length > 1) {
+        const ballot = ok.map((a, i) => `#### Câu trả lời ${labels[i]}\n\n${demoteHeadings(a.text!)}`).join('\n\n');
+        reviews = await this.askAll(filePath, agents, doc, `${COUNCIL_REVIEW}\n\n${ballot}`, signal);
+        ranks = aggregateRanking(reviews.map((r) => parseRanking(r.text ?? '', labels)), labels);
+      }
+
+      const rankOf = (i: number) => (ranks.has(labels[i]) ? ` — hạng TB ${ranks.get(labels[i])!.toFixed(1)}` : '');
+      const revealed = ok.map((a, i) => `#### ${labels[i]} (@${a.agent.id})${rankOf(i)}\n\n${demoteHeadings(a.text!)}`).join('\n\n');
+      const log = [
+        `**Hội đồng** — ${ok.length}/${agents.length} thành viên trả lời, chủ toạ @${chairman.id}.`,
+        revealed,
+        reviews.length ? `#### Chấm chéo\n\n${reviews.map((r) => `- @${r.agent.id}: ${r.text ? (r.text.match(RANK_LINE)?.[0] ?? 'không ghi dòng XẾP HẠNG') : `lỗi: ${r.error}`}`).join('\n')}` : '',
+        ...answers.filter((a) => a.error).map((a) => `- @${a.agent.id} không trả lời được: ${a.error}`),
+      ].filter(Boolean).join('\n\n');
+
+      const synth = withCouncilPrompt(doc, `${COUNCIL_CHAIR}\n\n${revealed}`);
+      await this.executeTurn(filePath, chairman, signal, { document: synth, thinkingPrefix: log });
+    })().finally(() => {
+      this.activeRuns.delete(filePath);
+      this.emitEvent({ type: 'orchestrator:status', filePath, running: false, turnCount: 0 });
+    });
+    run.done = task.then(noop, noop);
+    return task;
+  }
+
+  /** One non-persisted answer per agent, in parallel; failures are reported, not thrown (unless aborted). */
+  private async askAll(filePath: string, agents: AgentConfig[], doc: ChatDocument, prompt: string, signal: AbortSignal) {
+    const document = withCouncilPrompt(doc, prompt);
+    const results = await Promise.allSettled(
+      agents.map(async (agent) => {
+        this.presence?.ingest({ agent: agent.id, source: 'api', event: 'thinking', detail: 'Hội đồng' }, [doc]);
+        this.emitEvent({ type: 'agent:state', filePath, agentId: agent.id, state: 'thinking', detail: 'Hội đồng' });
+        try {
+          const r = await runAgentProvider(
+            { agent, document, fileExcerpts: [], settings: this.settings, signal, cwd: this.sync.workspaceRoot },
+            { onThinkingDelta: noop, onContentDelta: noop }
+          );
+          return r.content.trim();
+        } finally {
+          this.emitEvent({ type: 'agent:state', filePath, agentId: agent.id, state: 'idle' });
+          this.presence?.ingest({ agent: agent.id, source: 'api', event: 'idle' }, [doc]);
+        }
+      })
+    );
+    if (signal.aborted) {
+      const err = new Error('Aborted');
+      err.name = 'AbortError';
+      throw err;
+    }
+    return results.map((r, i) =>
+      r.status === 'fulfilled' && r.value
+        ? { agent: agents[i], text: r.value }
+        : { agent: agents[i], error: r.status === 'rejected' ? String(r.reason?.message ?? r.reason) : 'trả lời rỗng' }
+    );
+  }
+
+  private async executeTurn(
+    filePath: string,
+    agent: AgentConfig,
+    signal: AbortSignal,
+    override?: { document: ChatDocument; thinkingPrefix?: string }
+  ): Promise<void> {
     const doc = this.sync.getDocument(filePath);
     if (!doc) return;
+    const promptDoc = override?.document ?? doc;
 
     const messageId = nextMessageId(doc.messages);
     const startedAt = new Date().toISOString();
@@ -291,7 +419,7 @@ export class ConversationOrchestrator {
       const result = await runAgentProvider(
         {
           agent,
-          document: doc,
+          document: promptDoc,
           fileExcerpts,
           settings: this.settings,
           signal,
@@ -316,7 +444,9 @@ export class ConversationOrchestrator {
       );
 
       const finalContent = result.content.trim() || streamedContent.trim();
-      const finalThinking = result.thinking.trim() || streamedThinking.trim() || undefined;
+      const finalThinking =
+        [override?.thinkingPrefix, result.thinking.trim() || streamedThinking.trim()].filter(Boolean).join('\n\n') ||
+        undefined;
       const durationMs = Date.now() - startMs;
 
       await this.sync.patchRaw(filePath, (raw, latest) => {
