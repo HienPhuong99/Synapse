@@ -4,7 +4,9 @@ import path from 'node:path';
 import assert from 'node:assert/strict';
 import { after, before, describe, it } from 'node:test';
 import { parseChatMd } from '@synapse/shared';
-import { runCliProvider } from '../src/providers/cli.js';
+// Keep saved Claude sessions out of the real ~/.synapse while testing.
+process.env.SYNAPSE_SESSIONS_FILE = path.join(os.tmpdir(), `synapse-sessions-${process.pid}.json`);
+const { runCliProvider } = await import('../src/providers/cli.js');
 import type { CliActivity, ProviderPromptContext } from '../src/providers/types.js';
 
 // A fake `claude` on PATH that records its args/stdin and replays stream-json events.

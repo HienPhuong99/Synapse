@@ -1,4 +1,6 @@
 import { spawn } from 'node:child_process';
+import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import readline from 'node:readline';
 import { buildConversationTranscript, buildSystemPrompt } from './openaiCompat.js';
@@ -6,8 +8,26 @@ import type { CliActivity, ProviderPromptContext, ProviderStreamCallbacks, Provi
 
 type CliKind = 'claude' | 'gemini';
 
-// ponytail: in-memory per (workspace, file, agent); lost on restart, the transcript re-supplies context.
-const claudeSessions = new Map<string, string>();
+// Per (workspace, file, agent), saved next to settings so a server restart can still --resume.
+const SESSIONS_PATH = process.env.SYNAPSE_SESSIONS_FILE || path.join(os.homedir(), '.synapse', 'claude-sessions.json');
+const claudeSessions = new Map<string, string>(
+  Object.entries((() => {
+    try {
+      return JSON.parse(fs.readFileSync(SESSIONS_PATH, 'utf8')) as Record<string, string>;
+    } catch {
+      return {};
+    }
+  })())
+);
+function saveSession(key: string, id: string | undefined): void {
+  if (id ? claudeSessions.get(key) === id : !claudeSessions.has(key)) return;
+  if (id) claudeSessions.set(key, id);
+  else claudeSessions.delete(key);
+  fs.promises
+    .mkdir(path.dirname(SESSIONS_PATH), { recursive: true })
+    .then(() => fs.promises.writeFile(SESSIONS_PATH, JSON.stringify(Object.fromEntries(claudeSessions), null, 2)))
+    .catch(() => undefined); // best effort: worst case the next turn starts a fresh session
+}
 
 // Headless permissions: edits auto-approved, shell limited to build/test/git-read. Anything else is
 // denied and reported back in the message, so the human can widen it deliberately.
@@ -125,7 +145,7 @@ export async function runCliProvider(
 
   const handle = (ev: Record<string, any>) => {
     if (kind === 'claude') {
-      if (ev.type === 'system' && ev.subtype === 'init' && ev.session_id) claudeSessions.set(sessionKey, ev.session_id);
+      if (ev.type === 'system' && ev.subtype === 'init' && ev.session_id) saveSession(sessionKey, ev.session_id);
       if (ev.type === 'assistant') {
         for (const block of ev.message?.content ?? []) {
           if (block.type === 'text' && block.text) {
@@ -139,7 +159,7 @@ export async function runCliProvider(
         }
       }
       if (ev.type === 'result') {
-        if (ev.session_id) claudeSessions.set(sessionKey, ev.session_id);
+        if (ev.session_id) saveSession(sessionKey, ev.session_id);
         finalText = typeof ev.result === 'string' ? ev.result : undefined;
         tokensIn = ev.usage ? (ev.usage.input_tokens ?? 0) + (ev.usage.cache_read_input_tokens ?? 0) + (ev.usage.cache_creation_input_tokens ?? 0) : undefined;
         tokensOut = ev.usage?.output_tokens;
@@ -187,6 +207,8 @@ export async function runCliProvider(
     err.name = 'AbortError';
     throw err;
   }
+  // A saved session can expire or be deleted; drop it so the next turn starts fresh instead of failing forever.
+  if (resumeId && (failure || exitCode !== 0)) saveSession(sessionKey, undefined);
   if (failure) throw new Error(failure);
 
   let content = (finalText ?? pending).trim();

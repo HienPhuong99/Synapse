@@ -93,7 +93,7 @@ export function DiffDrawerModal({ open, onClose }: DiffDrawerModalProps) {
   const handleRemoveWorktree = async () => {
     if (!selectedWorktree) return;
     const ok = window.confirm(
-      `Xóa worktree @${selectedWorktree} và branch synapse/${selectedWorktree}? Commit chưa merge sẽ mất, mọi phiên đang chạy sẽ dừng.`
+      `Xóa worktree @${selectedWorktree} và branch synapse/${selectedWorktree}? Commit chưa merge sẽ mất, lượt đang chạy của @${selectedWorktree} sẽ dừng.`
     );
     if (!ok) return;
     setBusyAction('remove');

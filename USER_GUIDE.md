@@ -157,6 +157,8 @@ Synapse có thể gọi thẳng `claude` hoặc `gemini` đã cài trên máy th
 4. **Giới hạn quyền headless:**
    - `Claude Code CLI` chạy với `--permission-mode acceptEdits` và chỉ tự chạy được các lệnh `npm test*`, `npm run *`, `git status*`, `git diff*`, `git log*` (lệnh khác sẽ bị chặn và ghi chú cuối tin nhắn).
    - `Gemini CLI` chạy với `--approval-mode auto_edit --skip-trust` để tự chạy ở thư mục dự án hoặc worktree mới tạo. **Lưu ý an toàn:** `--skip-trust` cho phép `gemini` nạp `.gemini/settings.json` (hook, MCP server) trong workspace mà không hỏi lại — chỉ mở các repo tin cậy (hoặc kiểm tra `.gemini/` trước) khi chạy agent `gemini-cli`.
+5. **Phiên Claude CLI được nhớ qua lần khởi động lại:** Synapse lưu `session_id` vào `~/.synapse/claude-sessions.json` nên lượt sau dùng `--resume` và chỉ gửi tin nhắn mới (đỡ token). Session hết hạn hoặc bị xoá thì Synapse tự bỏ và lượt sau bắt đầu phiên mới.
+6. **Council (nút Hội đồng):** mọi agent trả lời song song, chấm chéo ẩn danh, chủ toạ tổng hợp. Agent nào lỗi (hết hạn mức, quá tải) thì Council vẫn chạy với các agent còn lại và ghi rõ ai không trả lời.
 
 ---
 
@@ -193,4 +195,6 @@ Nếu bạn muốn chạy nhiều agent thuần thảo luận trong `.chat.md` q
 | `gemini-cli` báo `IneligibleTierError` (`free-tier`) | Tài khoản Google cá nhân miễn phí không chạy được `gemini-cli`; dùng **Antigravity (Phần B)** hoặc gắn `GEMINI_API_KEY` |
 | Hai AI sửa trùng cùng 1 file code | Bật **Chạy trong Git worktree riêng** cho CLI agent, hoặc yêu cầu AI đầu tiên ghi bảng **chia thư mục/file** trong `chat.md` trước khi code |
 | Đã sửa `chat.md` bằng VS Code nhưng chưa thấy đổi | Kiểm tra đúng file đang mở ở cột trái; bấm nút **Làm mới** (biểu tượng xoay) ở góc trên trái nếu cần |
+| `gemini-cli` báo `exhausted your daily quota` hoặc `503 high demand` | Đặt `model` của agent Gemini sang model khác còn hạn mức, ví dụ `gemini-3-flash-preview` (model `default` hay hết hạn mức trước) |
+| Thông báo ntfy | Synapse gửi tiêu đề + 140 ký tự đầu tin nhắn tới URL ntfy trong Cài đặt. Với `ntfy.sh` công khai, ai biết tên topic đều đọc được: đặt tên topic dài, khó đoán, hoặc tự host ntfy |
 | Muốn test thử giao diện mà chưa có API key | Chọn provider **Simulator (Demo)** khi tạo phiên hoặc chạy sẵn file trong `examples/` |

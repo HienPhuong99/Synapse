@@ -345,7 +345,7 @@ export async function createSynapseServer(options: CreateServerOptions): Promise
     const agentId = req.body?.agentId?.trim();
     if (!agentId) return reply.code(400).send({ error: 'Missing agentId' });
     try {
-      await orchestrator.stopAllAndWait();
+      await orchestrator.stopAgentAndWait(agentId);
       await worktrees.removeWorktree(agentId);
       return { ok: true };
     } catch (err) {

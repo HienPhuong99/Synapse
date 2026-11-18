@@ -1,4 +1,4 @@
-import { execFile } from 'node:child_process';
+import { execFile, spawn } from 'node:child_process';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { promisify } from 'node:util';
@@ -169,7 +169,7 @@ export class WorktreeManager {
     }
   }
 
-  async ensureWorktree(agentId: string, opts?: { installDeps?: boolean }): Promise<string> {
+  async ensureWorktree(agentId: string, opts?: { installDeps?: boolean; signal?: AbortSignal }): Promise<string> {
     const cleanId = sanitizeAgentId(agentId);
     const pending = this.inFlightEnsures.get(cleanId);
     if (pending) return pending;
@@ -181,7 +181,7 @@ export class WorktreeManager {
     return task;
   }
 
-  private async doEnsureWorktree(cleanId: string, opts?: { installDeps?: boolean }): Promise<string> {
+  private async doEnsureWorktree(cleanId: string, opts?: { installDeps?: boolean; signal?: AbortSignal }): Promise<string> {
     await this.assertGitRepo();
     const wtPath = this.getExpectedWorktreePath(cleanId);
     const branch = this.getBranchName(cleanId);
@@ -213,21 +213,36 @@ export class WorktreeManager {
       const hasPackageJson = await pathExists(path.join(wtPath, 'package.json'));
       const hasNodeModules = await pathExists(path.join(wtPath, 'node_modules'));
       if (hasPackageJson && !hasNodeModules) {
-        await this.installDependencies(wtPath);
+        await this.installDependencies(wtPath, opts?.signal);
       }
     }
 
     return wtPath;
   }
 
-  private async installDependencies(wtPath: string): Promise<void> {
+  private async installDependencies(wtPath: string, signal?: AbortSignal): Promise<void> {
+    const isWin = process.platform === 'win32';
     try {
-      await execFileAsync('npm', ['install', '--prefer-offline', '--no-audit', '--no-fund'], {
-        cwd: wtPath,
-        timeout: NPM_INSTALL_TIMEOUT_MS,
-        maxBuffer: 1024 * 1024 * 8,
-        shell: process.platform === 'win32',
-        windowsHide: true,
+      await new Promise<void>((resolve, reject) => {
+        const child = execFile(
+          'npm',
+          ['install', '--prefer-offline', '--no-audit', '--no-fund'],
+          { cwd: wtPath, timeout: NPM_INSTALL_TIMEOUT_MS, maxBuffer: 1024 * 1024 * 8, shell: isWin, windowsHide: true },
+          (err) => {
+            signal?.removeEventListener('abort', kill);
+            if (signal?.aborted) reject(new Error('Đã dừng'));
+            else if (err) reject(err);
+            else resolve();
+          }
+        );
+        // shell:true on Windows means child is cmd.exe; kill the whole tree so npm stops too.
+        function kill() {
+          if (!child.pid || child.exitCode !== null) return;
+          if (isWin) spawn('taskkill', ['/pid', String(child.pid), '/T', '/F'], { windowsHide: true });
+          else child.kill('SIGTERM');
+        }
+        if (signal?.aborted) kill();
+        signal?.addEventListener('abort', kill, { once: true });
       });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);

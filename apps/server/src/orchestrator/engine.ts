@@ -32,6 +32,8 @@ interface ActiveRun {
   looping: boolean;
   /** Settles (never rejects) once the run has fully cleaned up. */
   done?: Promise<void>;
+  /** Agent whose turn is running now (set by executeTurn). */
+  agentId?: string;
 }
 
 const noop = () => undefined;
@@ -96,12 +98,17 @@ export class ConversationOrchestrator {
     this.activeRuns.clear();
   }
 
-  async stopAllAndWait(): Promise<void> {
-    const pending = [...this.activeRuns.values()].map((r) => r.done).filter(Boolean) as Promise<void>[];
-    this.stopAll();
-    if (pending.length > 0) {
-      await Promise.allSettled(pending);
+  /** Stops only the runs whose current turn belongs to `agentId`, and waits for them to clean up. */
+  async stopAgentAndWait(agentId: string): Promise<void> {
+    const id = agentId.toLowerCase();
+    const pending: Promise<void>[] = [];
+    for (const [filePath, run] of this.activeRuns) {
+      if (run.agentId?.toLowerCase() !== id) continue;
+      run.controller.abort();
+      this.activeRuns.delete(filePath);
+      if (run.done) pending.push(run.done);
     }
+    await Promise.allSettled(pending);
   }
 
   async loadSettings(): Promise<ProviderSettings> {
@@ -482,6 +489,8 @@ export class ConversationOrchestrator {
     const doc = this.sync.getDocument(filePath);
     if (!doc) return;
     const promptDoc = override?.document ?? doc;
+    const activeRun = this.activeRuns.get(filePath);
+    if (activeRun) activeRun.agentId = agent.id;
 
     const messageId = nextMessageId(doc.messages);
     const startedAt = new Date().toISOString();
@@ -524,7 +533,7 @@ export class ConversationOrchestrator {
     try {
       const workCwd =
         agent.worktree && this.worktrees
-          ? await this.worktrees.ensureWorktree(agent.id)
+          ? await this.worktrees.ensureWorktree(agent.id, { signal })
           : this.sync.workspaceRoot;
 
       const result = await runAgentProvider(
